@@ -82,10 +82,22 @@ export const checklistItems = [
 
 export const nextPhaseRequirements = [
   {
+    id: "REQ-PIPELINE-001",
+    title: "ทีม A รับงานจากธนาคารเข้าระบบ",
+    route: "intake",
+    missing: "ต้องมี login และ role ทีม A รวมถึงยืนยันฟิลด์อ้างอิงของแต่ละธนาคารก่อนเปิดใช้งานจริง",
+  },
+  {
+    id: "REQ-PIPELINE-004",
+    title: "ทีม C ส่งผลประเมินกลับธนาคาร",
+    route: "handoff",
+    missing: "ต้องยืนยันช่องทางส่งงานของแต่ละธนาคารและข้อมูลตอบกลับ ก่อนบันทึกผลการส่งจริง",
+  },
+  {
     id: "REQ-REVIEW-001",
     title: "ผู้ตรวจสอบขอแก้ไขหรืออนุมัติงาน",
     route: "review",
-    missing: "ต้องยืนยัน role ผู้ตรวจสอบ ผู้อนุมัติ และรูปแบบประวัติสถานะก่อนเปิดใช้งานจริง",
+    missing: "ต้องยืนยัน role ผู้ตรวจสอบ ผู้อนุมัติ และลำดับสถานะกับประวัติตาม REQ-PIPELINE-005 ก่อนเปิดใช้งานจริง",
   },
   {
     id: "REQ-EXPORT-001",
@@ -101,9 +113,9 @@ export const nextPhaseRequirements = [
   },
   {
     id: "REQ-SECURITY-001",
-    title: "Login, role-based access, audit log, encryption และ retention",
+    title: "Login, บทบาททีม A/B/C, audit log, encryption และ retention",
     route: "security",
-    missing: "ต้องทำ threat/privacy review และกำหนดนโยบาย PDPA ก่อน production",
+    missing: "ต้องทำ threat/privacy review กำหนดนโยบาย PDPA และยืนยันตารางสิทธิ์ตาม REQ-ROLE-001 ก่อน production",
   },
 ] as const;
 

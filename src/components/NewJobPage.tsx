@@ -2,16 +2,22 @@
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
+import { canEdit, canView, ownerTeamLabel } from "@/domain/access";
 import { bankOptions } from "@/domain/appraisal";
 import { createDraftJob, saveDraft } from "@/infrastructure/storage/appraisalStore";
-import { Button, Field, FormSection, Input, PageHeader, Panel, Select } from "./ui";
+import { AccessBanner, Button, Field, FormSection, Input, PageHeader, Panel, Select } from "./ui";
+import { useAccess } from "./useAccess";
 
 export function NewJobPage() {
   const router = useRouter();
+  const { permission } = useAccess();
+  const level = permission("newJob");
+  const readOnly = !canEdit(level);
   const [job, setJob] = useState(() => createDraftJob());
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (readOnly) return;
     saveDraft(job);
     router.push(`/jobs/${job.id}/workflow`);
   }
@@ -24,8 +30,13 @@ export function NewJobPage() {
         title="สร้างงานประเมินใหม่"
       />
 
+      {readOnly ? (
+        <AccessBanner level={canView(level) ? "read" : "none"} ownerLabel={ownerTeamLabel("newJob")} />
+      ) : null}
+
       <Panel>
         <form onSubmit={submit}>
+          <fieldset className="contents" disabled={readOnly}>
           <FormSection
             description="ข้อมูลสี่ช่องนี้ใช้ระบุงานในรายการ และแก้ไขภายหลังได้ตลอดที่ยังเป็นแบบร่าง"
             title="ข้อมูลงานเริ่มต้น"
@@ -77,6 +88,7 @@ export function NewJobPage() {
               สร้างงานและไปต่อ
             </Button>
           </FormSection>
+          </fieldset>
         </form>
       </Panel>
     </div>

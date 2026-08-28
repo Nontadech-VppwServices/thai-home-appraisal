@@ -53,3 +53,5 @@ Prototype ต้องแสดงให้ผู้ใช้ทราบว่�
 - `REQ-EXPORT-001`: ส่งออก Excel/CSV ตาม schema ของธนาคาร
 - `REQ-INTEGRATION-001`: ส่งข้อมูลผ่าน API ของแต่ละธนาคาร โดยมี authentication และการติดตามผล
 - `REQ-SECURITY-001`: login, role-based access, audit log, encryption, retention และคำขอเกี่ยวกับข้อมูลส่วนบุคคล
+- `REQ-PIPELINE-001` ถึง `REQ-PIPELINE-006` และ `REQ-ROLE-001`: สายงาน 3 ทีม A → B → C ดูรายละเอียดใน [pipeline.md](pipeline.md)
+- ดึงงานจากธนาคารและส่งผลกลับด้วย API หรือ RPA แทนการกรอกมือของทีม A และทีม C

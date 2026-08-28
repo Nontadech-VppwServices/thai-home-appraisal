@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronDown, Trash2 } from "lucide-react";
+import { ChevronDown, EyeOff, Lock, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 
 function classes(...items: Array<string | false | undefined>) {
@@ -503,6 +503,86 @@ export function Notice({ children, tone = "warning" }: { children: ReactNode; to
       )}
     >
       {children}
+    </div>
+  );
+}
+
+/* --------------------------------------------------------------------------
+   Access / permission
+-------------------------------------------------------------------------- */
+
+export function SegmentedControl<Value extends string>({
+  value,
+  options,
+  onChange,
+  disabled,
+  label,
+}: {
+  value: Value;
+  options: { value: Value; label: string }[];
+  onChange: (next: Value) => void;
+  disabled?: boolean;
+  label: string;
+}) {
+  return (
+    <div
+      aria-label={label}
+      className={classes(
+        "inline-grid w-full gap-0.5 rounded-control border border-line bg-surface-2 p-0.5",
+        disabled && "opacity-60",
+      )}
+      role="radiogroup"
+      style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
+    >
+      {options.map((option) => {
+        const active = option.value === value;
+        return (
+          <button
+            aria-checked={active}
+            className={classes(
+              "min-h-9 rounded-[7px] px-2 text-xs font-bold transition-colors duration-150",
+              active ? "bg-accent text-white shadow-panel dark:text-canvas" : "text-muted hover:text-ink",
+              disabled && "cursor-not-allowed",
+            )}
+            disabled={disabled}
+            key={option.value}
+            onClick={() => onChange(option.value)}
+            role="radio"
+            type="button"
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** บอกผู้ใช้ว่าทำไมหน้านี้แก้ไม่ได้ ใช้คู่กับ fieldset disabled */
+export function AccessBanner({ level, ownerLabel }: { level: "none" | "read"; ownerLabel?: string | null }) {
+  const forOwner = ownerLabel ? `เมนูนี้เป็นของ${ownerLabel}` : "เมนูนี้ไม่ใช่ของทีมคุณ";
+  return (
+    <div
+      className={classes(
+        "mb-6 flex items-start gap-3 rounded-control border px-4 py-3 text-sm leading-relaxed",
+        level === "none"
+          ? "border-warning/30 bg-warning-soft text-warning"
+          : "border-line bg-surface-2 text-ink-soft",
+      )}
+      role="status"
+    >
+      {level === "none" ? <EyeOff className="mt-0.5 shrink-0" size={16} /> : <Lock className="mt-0.5 shrink-0" size={16} />}
+      <span>
+        {level === "none" ? (
+          <>
+            <strong className="font-bold">ปกติทีมคุณไม่เห็นเมนูนี้</strong> — แสดงให้ดูเพราะเป็นโหมด demo {forOwner}
+          </>
+        ) : (
+          <>
+            <strong className="font-bold">อ่านอย่างเดียว</strong> — {forOwner} จึงแก้ไขจากหน้านี้ไม่ได้
+          </>
+        )}
+      </span>
     </div>
   );
 }
