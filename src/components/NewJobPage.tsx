@@ -46,7 +46,7 @@ export function NewJobPage() {
                 </select>
               </Field>
             </div>
-            <div className="action-row" style={{ marginTop: 20 }}>
+            <div className="action-row action-top">
               <Button type="submit" variant="primary">สร้างงานและไปต่อ</Button>
             </div>
           </FormSection>

@@ -93,7 +93,7 @@ export function AppraisalWorkspace({ jobId, section }: { jobId: string; section:
         <div>
           <h1>ไม่พบงานประเมินนี้</h1>
           <p className="intro">งานอาจถูกล้างจากเบราว์เซอร์เครื่องนี้แล้ว</p>
-          <div className="action-row" style={{ justifyContent: "center", marginTop: 18 }}>
+          <div className="action-row action-center">
             <Link className="btn btn-primary" href="/jobs/new">สร้างงานใหม่</Link>
           </div>
         </div>
@@ -136,7 +136,10 @@ export function AppraisalWorkspace({ jobId, section }: { jobId: string; section:
       <div className="workspace">
         <section className="panel">
           <div className="panel-head">
-            <h2>{pageTitle(section)}</h2>
+            <div>
+              <div className="section-title">แบบฟอร์มงานประเมิน</div>
+              <h2>{pageTitle(section)}</h2>
+            </div>
             <Badge tone={job.status === "saved" ? "success" : "neutral"}>{saveState}</Badge>
           </div>
           {section === "workflow" ? <WorkflowSection job={job} setJob={setJob} /> : null}
@@ -207,9 +210,9 @@ function PropertySection({ job, setJob }: SectionProps) {
   return (
     <FormSection eyebrow="REQ-PROPERTY-001 / REQ-PROPERTY-002" title="ข้อมูลบ้านและที่ตั้ง">
       <div className="grid">
-        <Field label="ที่อยู่ทรัพย์สิน">
+        <div className="full"><Field label="ที่อยู่ทรัพย์สิน">
           <textarea value={job.property.address} onChange={(event) => updateProperty(job, setJob, "address", event.target.value)} placeholder="บ้านเลขที่ ซอย ถนน ตำบล/แขวง อำเภอ/เขต จังหวัด รหัสไปรษณีย์" />
-        </Field>
+        </Field></div>
         <Field label="ละติจูด"><input value={job.property.latitude} onChange={(event) => updateProperty(job, setJob, "latitude", event.target.value)} placeholder="เช่น 13.7563" /></Field>
         <Field label="ลองจิจูด"><input value={job.property.longitude} onChange={(event) => updateProperty(job, setJob, "longitude", event.target.value)} placeholder="เช่น 100.5018" /></Field>
         <Field label="ประเภททรัพย์"><select value={job.property.propertyType} onChange={(event) => updateProperty(job, setJob, "propertyType", event.target.value)}>{propertyTypeOptions.map((item) => <option key={item}>{item}</option>)}</select></Field>
@@ -252,8 +255,8 @@ function PhotosSection({ job, setJob, showToast }: SectionProps & { showToast: (
         <span><strong>แตะเพื่อเพิ่มรูปถ่าย</strong>รูปด้านหน้า บ้านเลขที่ ภายในบ้าน ถนน และสภาพแวดล้อม</span>
       </label>
       <input className="photo-input" id="photoInput" type="file" accept="image/*" multiple onChange={addPhotos} />
-      <div className="notice" style={{ marginTop: 14 }}>รูปภาพใน MVP นี้เก็บเป็นข้อมูลในเบราว์เซอร์เครื่องนี้ หากรูปมีขนาดใหญ่มากอาจเกินพื้นที่ localStorage</div>
-      {job.photos.length === 0 ? <div className="empty-state" style={{ marginTop: 16 }}>ยังไม่มีรูปหลักฐาน</div> : null}
+      <div className="notice mt-md">รูปภาพใน MVP นี้เก็บเป็นข้อมูลในเบราว์เซอร์เครื่องนี้ หากรูปมีขนาดใหญ่มากอาจเกินพื้นที่ localStorage</div>
+      {job.photos.length === 0 ? <div className="empty-state mt-md">ยังไม่มีรูปหลักฐาน</div> : null}
       <div className="photos">
         {job.photos.map((photo) => (
           <div className="photo" key={photo.id}>
@@ -282,7 +285,7 @@ function ValuationSection({ job, setJob }: SectionProps) {
         {job.valuation.method === "area" ? <Field label="ราคาต่อตารางเมตร" help="บาท"><input min="0" step="100" type="number" value={fieldValue(job.valuation.rate)} onChange={(event) => updateValuation(job, setJob, "rate", numberValue(event))} /></Field> : null}
         {job.valuation.method === "compare" ? <Field label="ราคาจากทรัพย์เปรียบเทียบ" help="บาท"><input min="0" step="1000" type="number" value={fieldValue(job.valuation.comparePrice)} onChange={(event) => updateValuation(job, setJob, "comparePrice", numberValue(event))} /></Field> : null}
       </div>
-      <div className="success-note" style={{ marginTop: 18 }}>ผลประเมิน: {formatMoney(result.price)} · {result.price > 0 ? result.basis : "กรุณากรอกข้อมูลราคา"}</div>
+      <div className="success-note mt-lg">ผลประเมิน: {formatMoney(result.price)} · {result.price > 0 ? result.basis : "กรุณากรอกข้อมูลราคา"}</div>
     </FormSection>
   );
 }

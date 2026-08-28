@@ -30,7 +30,7 @@ export function ReportPage({ jobId }: { jobId: string }) {
       </header>
 
       <article className="report-sheet">
-        <div className="page-head" style={{ marginBottom: 10 }}>
+        <div className="report-head">
           <div>
             <div className="eyebrow">รายงานประเมินราคาบ้าน</div>
             <h1>{job.workflow.caseId || "ยังไม่ระบุเลขที่งาน"}</h1>
@@ -57,12 +57,12 @@ export function ReportPage({ jobId }: { jobId: string }) {
         </section>
 
         <h2>รูปถ่ายหลักฐาน</h2>
-        {job.photos.length === 0 ? <div className="empty-state" style={{ marginTop: 12 }}>ยังไม่มีรูปหลักฐานในรายงาน</div> : null}
-        <div className="report-photos" style={{ marginTop: 12 }}>
+        {job.photos.length === 0 ? <div className="empty-state mt-sm">ยังไม่มีรูปหลักฐานในรายงาน</div> : null}
+        <div className="report-photos mt-sm">
           {job.photos.map((photo) => <Image alt={photo.name} className="photo" height={360} key={photo.id} src={photo.dataUrl} unoptimized width={360} />)}
         </div>
 
-        <div className="notice" style={{ marginTop: 24 }}>ข้อจำกัด: prototype นี้ยังไม่ส่งข้อมูลไปธนาคารจริง จนกว่าจะยืนยัน API หรือแบบฟอร์มของธนาคารเป้าหมาย</div>
+        <div className="notice mt-lg">ข้อจำกัด: prototype นี้ยังไม่ส่งข้อมูลไปธนาคารจริง จนกว่าจะยืนยัน API หรือแบบฟอร์มของธนาคารเป้าหมาย</div>
       </article>
     </>
   );

@@ -25,11 +25,11 @@ export function FuturePage({ jobId, route }: { jobId?: string; route: string }) 
         </div>
         <div className="panel-body">
           <div className="notice">{requirement?.missing ?? "ต้องยืนยันรายละเอียด requirement ก่อน implementation"}</div>
-          <div className="grid" style={{ marginTop: 20 }}>
+          <div className="grid mt-lg">
             <div className="success-note">มี route และ navigation สำหรับวาง workflow แล้ว</div>
             <div className="success-note">ยังไม่สร้าง backend, auth, export schema หรือ bank API โดยไม่มีข้อกำหนด</div>
           </div>
-          {jobId ? <p className="intro" style={{ marginTop: 20 }}>งานอ้างอิง: <Link href={`/jobs/${jobId}/workflow`}>{jobId}</Link></p> : null}
+          {jobId ? <p className="intro mt-lg">งานอ้างอิง: <Link href={`/jobs/${jobId}/workflow`}>{jobId}</Link></p> : null}
         </div>
       </section>
     </>

@@ -29,12 +29,12 @@ export function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="shell">
       <aside className="sidebar">
-        <div>
+        <div className="brand-block">
           <Link className="brand" href="/">เรือนราคา</Link>
           <div className="brand-note">บันทึกงานประเมินบ้านให้เป็นหลักฐานที่เชื่อถือได้</div>
         </div>
 
-        <nav className="side-nav" aria-label="เมนูหลัก">
+        <nav className="side-nav main-nav" aria-label="เมนูหลัก">
           {baseLinks.map(({ href, label, icon: Icon }) => (
             <Link className={`nav-item ${pathname === href ? "active" : ""}`} href={href} key={href}>
               <Icon aria-hidden="true" size={16} />

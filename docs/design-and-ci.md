@@ -4,12 +4,13 @@
 
 ## Design direction
 
-แนวทางหลักคือ **quiet precision**: สะอาดตา ทันสมัย อ่านข้อมูลจำนวนมากได้เร็ว และให้ความสำคัญกับความน่าเชื่อถือของข้อมูลประเมิน
+แนวทางหลักคือ **Modern SaaS for appraisal work**: สว่าง สะอาด ใช้งานซ้ำได้เร็วบน desktop และ mobile และยังคงความน่าเชื่อถือของข้อมูลประเมิน
 
-- ใช้พื้นหลังโทนสว่างที่มี contrast ชัด พร้อมสี accent ที่ใช้เฉพาะ action และสถานะ
-- ใช้ typography ที่อ่านภาษาไทยและตัวเลขได้ชัด โดยกำหนด scale ที่สม่ำเสมอ
-- ใช้เส้นแบ่งบางและ surface ที่มีลำดับชั้น แทนการซ้อน card หลายชั้น
-- ให้ข้อมูลสำคัญ เช่น เลขที่งาน สถานะ และราคาประเมินเห็นได้ชัดโดยไม่ใช้เอฟเฟกต์รบกวน
+- ใช้พื้นหลังขาวอมฟ้า surface ขาว และสี teal/blue สำหรับ navigation, focus และ action เพื่อให้ดูทันสมัยแต่ไม่รบกวนสายตา
+- ใช้ typography scale ที่สม่ำเสมอสำหรับ heading, body, label, badge, table และตัวเลขราคา ไม่ปล่อยให้ font size กระจัดกระจายตามหน้า
+- ใช้ spacing scale เดียวกันสำหรับ gap, padding และ section rhythm เพื่อให้ฟอร์มและข้อมูลสแกนง่าย
+- ใช้เส้นแบ่งบาง shadow เบา และ panel เท่าที่จำเป็น แทนการซ้อน card หลายชั้น
+- ให้ข้อมูลสำคัญ เช่น เลขที่งาน สถานะ และราคาประเมินเห็นได้ชัด โดยยังต้องไม่ทำให้ mobile layout แตกหรือปุ่มตกบรรทัดอ่านยาก
 - ปุ่มหลักต้องมี label ชัดเจน ส่วน icon-only button ใช้เมื่อเป็นสัญลักษณ์ที่คุ้นเคยและมี tooltip
 - ทุกสีต้องผ่าน contrast ที่เหมาะสม และห้ามใช้สีเพียงอย่างเดียวเพื่อสื่อสถานะ
 
@@ -17,14 +18,14 @@
 
 เก็บค่ากลางเป็น tokens ในชั้น UI เพื่อให้แก้ theme ได้จากจุดเดียว:
 
-- `color`: background, surface, text, muted, border, primary, success, warning, danger
-- `font`: display, body, numeric และน้ำหนักที่จำเป็น
-- `space`: ใช้ลำดับค่าคงที่สำหรับ gap, padding และ section spacing
+- `color`: paper, surface, raised surface, text, muted, border, primary, action, success, warning, danger และ soft background ของแต่ละสถานะ
+- `font`: display, body, numeric, font-size scale และน้ำหนักที่จำเป็น
+- `space`: ใช้ลำดับ 4px-based scale สำหรับ gap, padding และ section spacing
 - `radius`: ใช้ขนาดเล็กถึงปานกลางกับ control และ panel ไม่ทำให้หน้าระบบดูเป็นแอปการ์ดลอยทั้งหมด
 - `shadow`: ใช้เบาและจำกัดเฉพาะพื้นที่ที่ต้องการแยกจากพื้นหลัง
 - `motion`: duration และ easing กลางสำหรับ transition ที่สั้น
 
-ห้ามใส่ค่าสีหรือ spacing แบบสุ่มใน component หากมี token ที่ตรงความหมายอยู่แล้ว
+ห้ามใส่ค่าสี spacing หรือ font size แบบสุ่มใน component หากมี token หรือ utility class ที่ตรงความหมายอยู่แล้ว หลีกเลี่ยง inline style สำหรับ layout ยกเว้นมีเหตุผลเฉพาะจุดที่ตรวจสอบได้
 
 ## Responsive layout
 
@@ -32,17 +33,18 @@
 
 | ขนาด | แนวทาง |
 |---|---|
-| Mobile | ฟอร์มหนึ่งคอลัมน์, action สำคัญเข้าถึงง่าย, สรุปราคาอยู่ใกล้ปุ่มบันทึก |
-| Tablet | ใช้ grid สองคอลัมน์กับฟิลด์ที่เกี่ยวข้อง และคงลำดับการกรอกที่เป็นธรรมชาติ |
+| Mobile | ฟอร์มหนึ่งคอลัมน์, navigation แตะง่าย, action สำคัญเข้าถึงง่าย, dashboard ใช้ card/list แทน table กว้าง |
+| Tablet | ใช้ grid หนึ่งหรือสองคอลัมน์ตามพื้นที่จริง และคงลำดับการกรอกที่เป็นธรรมชาติ |
 | Desktop | แบ่งพื้นที่ form กับ summary อย่างสมดุล ใช้พื้นที่ว่างช่วยสแกนข้อมูล ไม่ขยายข้อความจนอ่านยาก |
 
 กฎร่วม:
 
 - content ต้องไม่ล้นแนวนอนและ input ต้องมีขนาดกดได้สะดวก
+- ข้อความภาษาไทย รหัสงาน ที่อยู่ รายละเอียด และชื่อไฟล์ยาวต้อง wrap ได้โดยไม่ดัน layout แตก
 - ฟอร์มต้องเรียงลำดับเดียวกันในทุกขนาดหน้าจอ แม้ layout จะเปลี่ยน
-- ตารางหรือข้อมูลเปรียบเทียบต้องมีวิธีดูบนจอแคบ เช่น scroll เฉพาะพื้นที่หรือเปลี่ยนเป็นรายการ
+- ตารางหรือข้อมูลเปรียบเทียบต้องมีวิธีดูบนจอแคบ เช่น เปลี่ยนเป็นรายการ card สำหรับ mobile หรือ scroll เฉพาะพื้นที่เมื่อจำเป็น
 - รูปภาพหลักฐานต้องรักษา aspect ratio และมี preview ที่ไม่ทำให้ layout กระโดด
-- print layout ต้องซ่อน navigation, action controls และ animation ที่ไม่เกี่ยวกับรายงาน
+- print layout ต้องซ่อน navigation, action controls และ animation ที่ไม่เกี่ยวกับรายงาน พร้อมจัด report grid และรูปภาพให้เหมาะกับ A4
 
 ## Reusable components
 
