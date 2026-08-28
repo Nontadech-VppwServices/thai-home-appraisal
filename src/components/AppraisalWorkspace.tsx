@@ -15,8 +15,10 @@ import {
   type AppraisalJob,
   type ValuationMethod,
 } from "@/domain/appraisal";
+import { canEdit, canView, ownerTeamLabel, type MenuKey } from "@/domain/access";
 import { getJob, removeJob, saveDraft, saveJob, subscribeToJobs } from "@/infrastructure/storage/appraisalStore";
 import {
+  AccessBanner,
   Badge,
   Button,
   EmptyState,
@@ -38,6 +40,7 @@ import {
   Textarea,
   Toast,
 } from "./ui";
+import { useAccess } from "./useAccess";
 
 type Section = "workflow" | "property" | "photos" | "valuation";
 
@@ -53,6 +56,9 @@ const steps: { section: Section | "report"; label: string }[] = [
 
 export function AppraisalWorkspace({ jobId, section }: { jobId: string; section: Section }) {
   const router = useRouter();
+  const { permission } = useAccess();
+  const level = permission(section as MenuKey);
+  const readOnly = !canEdit(level);
   const storedJob = useSyncExternalStore(subscribeToJobs, () => getJob(jobId), emptyJob);
   const [job, setJob] = useState<AppraisalJob | null>(storedJob);
   const [saveState, setSaveState] = useState("พร้อมแก้ไข");
@@ -61,7 +67,7 @@ export function AppraisalWorkspace({ jobId, section }: { jobId: string; section:
   const toastTimer = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!job) return;
+    if (!job || readOnly) return;
     if (skipFirstSave.current) {
       skipFirstSave.current = false;
       return;
@@ -77,7 +83,7 @@ export function AppraisalWorkspace({ jobId, section }: { jobId: string; section:
       }
     }, 500);
     return () => window.clearTimeout(timer);
-  }, [job]);
+  }, [job, readOnly]);
 
   useEffect(() => {
     if (!storedJob || job) return;
@@ -130,28 +136,39 @@ export function AppraisalWorkspace({ jobId, section }: { jobId: string; section:
     <>
       <PageHeader
         actions={
-          <>
-            <Button className="w-full sm:w-auto" onClick={handleSave} variant="primary">
-              <Save size={15} />
-              บันทึกงาน
-            </Button>
-            {/* บนมือถือวางสองปุ่มรองคู่กันเพื่อไม่ให้ header ยาวเกินไป */}
-            <div className="grid grid-cols-2 gap-2 sm:contents">
-              <LinkButton href={`/jobs/${job.id}/report`}>
-                <Printer size={15} />
-                พิมพ์รายงาน
-              </LinkButton>
-              <Button onClick={startNewJob} variant="ghost">
-                <Trash2 size={15} />
-                เริ่มงานใหม่
+          readOnly ? (
+            <LinkButton className="w-full sm:w-auto" href={`/jobs/${job.id}/report`}>
+              <Printer size={15} />
+              พิมพ์รายงาน
+            </LinkButton>
+          ) : (
+            <>
+              <Button className="w-full sm:w-auto" onClick={handleSave} variant="primary">
+                <Save size={15} />
+                บันทึกงาน
               </Button>
-            </div>
-          </>
+              {/* บนมือถือวางสองปุ่มรองคู่กันเพื่อไม่ให้ header ยาวเกินไป */}
+              <div className="grid grid-cols-2 gap-2 sm:contents">
+                <LinkButton href={`/jobs/${job.id}/report`}>
+                  <Printer size={15} />
+                  พิมพ์รายงาน
+                </LinkButton>
+                <Button onClick={startNewJob} variant="ghost">
+                  <Trash2 size={15} />
+                  เริ่มงานใหม่
+                </Button>
+              </div>
+            </>
+          )
         }
         description={pageIntro(section)}
         eyebrow={job.workflow.caseId || "งานแบบร่าง"}
         title={pageTitle(section)}
       />
+
+      {readOnly ? (
+        <AccessBanner level={canView(level) ? "read" : "none"} ownerLabel={ownerTeamLabel(section as MenuKey)} />
+      ) : null}
 
       <Stepper
         currentIndex={steps.findIndex((step) => step.section === section)}
@@ -172,13 +189,22 @@ export function AppraisalWorkspace({ jobId, section }: { jobId: string; section:
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_21rem]">
         <Panel>
           <PanelHead
-            aside={<Badge tone={saved ? "success" : "neutral"}>{saveState}</Badge>}
+            aside={
+              readOnly ? (
+                <Badge tone="neutral">อ่านอย่างเดียว</Badge>
+              ) : (
+                <Badge tone={saved ? "success" : "neutral"}>{saveState}</Badge>
+              )
+            }
             title={pageTitle(section)}
           />
-          {section === "workflow" ? <WorkflowSection job={job} setJob={setJob} /> : null}
-          {section === "property" ? <PropertySection job={job} setJob={setJob} /> : null}
-          {section === "photos" ? <PhotosSection job={job} setJob={setJob} showToast={showToast} /> : null}
-          {section === "valuation" ? <ValuationSection job={job} setJob={setJob} /> : null}
+          {/* fieldset disabled ปิดการแก้ทุก control ข้างในให้เอง ไม่ต้องไล่ใส่ทีละช่อง */}
+          <fieldset className="contents" disabled={readOnly}>
+            {section === "workflow" ? <WorkflowSection job={job} setJob={setJob} /> : null}
+            {section === "property" ? <PropertySection job={job} setJob={setJob} /> : null}
+            {section === "photos" ? <PhotosSection job={job} setJob={setJob} showToast={showToast} /> : null}
+            {section === "valuation" ? <ValuationSection job={job} setJob={setJob} /> : null}
+          </fieldset>
         </Panel>
 
         <aside className="grid gap-4 xl:sticky xl:top-6">
@@ -190,7 +216,7 @@ export function AppraisalWorkspace({ jobId, section }: { jobId: string; section:
           <Panel>
             <PanelBody className="grid gap-4">
               <h3 className="text-base font-bold">ก่อนส่งให้ผู้ตรวจสอบ</h3>
-              <div className="grid gap-3">
+              <fieldset className="grid gap-3" disabled={readOnly}>
                 {checklistItems.map((item, index) => (
                   <label className="flex cursor-pointer items-start gap-3 text-sm leading-relaxed text-ink-soft" key={item}>
                     <input
@@ -202,7 +228,7 @@ export function AppraisalWorkspace({ jobId, section }: { jobId: string; section:
                     <span>{item}</span>
                   </label>
                 ))}
-              </div>
+              </fieldset>
               <Notice>
                 Prototype นี้บันทึกข้อมูลไว้ในเบราว์เซอร์เครื่องนี้เท่านั้น ยังไม่มีการส่งข้อมูลจริงไปธนาคาร
               </Notice>

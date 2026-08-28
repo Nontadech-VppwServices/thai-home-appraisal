@@ -8,31 +8,39 @@ import {
   Menu,
   Send,
   ShieldCheck,
+  SlidersHorizontal,
   TableProperties,
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
+import { canView, menuCatalog, teamProfiles, type MenuKey, type PermissionMatrix, type Team } from "@/domain/access";
+import { signOut } from "@/infrastructure/storage/accessStore";
+import { useAccess } from "./useAccess";
 
-type NavLink = { href: string; label: string; icon: ComponentType<{ size?: number; className?: string }> };
+type IconType = ComponentType<{ size?: number; className?: string }>;
+type NavLink = { href: string; label: string; icon: IconType };
 
-const baseLinks = [
-  { href: "/", label: "รายการประเมิน", icon: Home },
-  { href: "/jobs/new", label: "สร้างงาน", icon: FileText },
-  { href: "/security", label: "ความปลอดภัย", icon: LockKeyhole },
-];
+const menuIcons: Record<MenuKey, IconType> = {
+  jobs: Home,
+  newJob: FileText,
+  permissions: SlidersHorizontal,
+  security: LockKeyhole,
+  intake: Landmark,
+  workflow: FileText,
+  property: Home,
+  photos: TableProperties,
+  valuation: Landmark,
+  report: ShieldCheck,
+  review: ShieldCheck,
+  export: TableProperties,
+  handoff: Send,
+  integration: Send,
+};
 
-const jobLinks = [
-  { segment: "workflow", label: "ข้อมูลงาน", icon: FileText },
-  { segment: "property", label: "ทรัพย์สิน", icon: Home },
-  { segment: "photos", label: "รูปถ่าย", icon: TableProperties },
-  { segment: "valuation", label: "ประเมินราคา", icon: Landmark },
-  { segment: "report", label: "รายงาน", icon: ShieldCheck },
-  { segment: "review", label: "ตรวจสอบ", icon: ShieldCheck },
-  { segment: "export", label: "ส่งออก", icon: TableProperties },
-  { segment: "integration", label: "ส่งธนาคาร", icon: Send },
-];
+const baseMenus = menuCatalog.filter((entry) => entry.href);
+const jobMenus = menuCatalog.filter((entry) => entry.segment);
 
 const footerNote = (
   <p className="text-xs leading-relaxed text-muted">
@@ -44,8 +52,12 @@ const footerNote = (
 
 export function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { hydrated, team, matrix } = useAccess();
+
   const jobId = pathname.match(/^\/jobs\/([^/]+)/)?.[1];
   const activeJobId = jobId && jobId !== "new" ? jobId : undefined;
+  const onLoginPage = pathname === "/login";
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerPath, setDrawerPath] = useState(pathname);
@@ -58,6 +70,11 @@ export function Shell({ children }: { children: ReactNode }) {
     setDrawerPath(pathname);
     setDrawerOpen(false);
   }
+
+  // ยังไม่เลือกทีม -> ไปหน้าเลือกทีม ตรวจหลัง hydrate เท่านั้น
+  useEffect(() => {
+    if (hydrated && !team && !onLoginPage) router.replace("/login");
+  }, [hydrated, onLoginPage, router, team]);
 
   useEffect(() => {
     if (!drawerOpen) return;
@@ -79,11 +96,18 @@ export function Shell({ children }: { children: ReactNode }) {
     };
   }, [drawerOpen]);
 
-  const nav = <NavGroups activeJobId={activeJobId} pathname={pathname} />;
+  if (onLoginPage) return <>{children}</>;
+
+  // ระหว่างที่ยังไม่รู้ว่าใคร login อยู่ ยังไม่วาดเมนู กันเมนูผิดทีมกะพริบ
+  if (!hydrated || !team) return <div className="min-h-dvh bg-canvas" />;
+
+  const nav = (
+    <NavGroups activeJobId={activeJobId} matrix={matrix} pathname={pathname} team={team} />
+  );
+  const identity = <TeamCard onSignOut={() => router.replace("/login")} team={team} />;
 
   return (
     <div className="min-h-dvh bg-canvas">
-      {/* Mobile top bar */}
       <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-surface/85 px-4 backdrop-blur-md lg:hidden print:hidden">
         <button
           aria-expanded={drawerOpen}
@@ -98,16 +122,20 @@ export function Shell({ children }: { children: ReactNode }) {
         <Link className="text-lg font-extrabold tracking-tight" href="/">
           เรือนราคา
         </Link>
+        <span className="ml-auto rounded-full bg-accent-soft px-2.5 py-1 text-xs font-bold text-accent-ink">
+          {teamProfiles[team].label}
+        </span>
       </header>
 
-      {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-66 flex-col gap-6 overflow-y-auto border-r border-line bg-surface px-4 py-6 lg:flex print:hidden">
         <Brand />
         {nav}
-        <div className="mt-auto border-t border-line pt-4">{footerNote}</div>
+        <div className="mt-auto grid gap-4 border-t border-line pt-4">
+          {identity}
+          {footerNote}
+        </div>
       </aside>
 
-      {/* Mobile drawer */}
       {drawerOpen ? (
         <div className="fixed inset-0 z-40 lg:hidden print:hidden">
           <button
@@ -136,7 +164,10 @@ export function Shell({ children }: { children: ReactNode }) {
               </button>
             </div>
             {nav}
-            <div className="mt-auto border-t border-line pt-4">{footerNote}</div>
+            <div className="mt-auto grid gap-4 border-t border-line pt-4">
+              {identity}
+              {footerNote}
+            </div>
           </div>
         </div>
       ) : null}
@@ -161,26 +192,72 @@ function Brand() {
   );
 }
 
-function NavGroups({ activeJobId, pathname }: { activeJobId?: string; pathname: string }) {
+/** แสดงทีมปัจจุบันและสลับทีมได้ทันที เพื่อให้ demo เทียบสิทธิ์ได้เร็ว */
+function TeamCard({ team, onSignOut }: { team: Team; onSignOut: () => void }) {
+  const profile = teamProfiles[team];
+  return (
+    <div className="grid gap-2 rounded-control border border-line bg-surface-2 p-3">
+      <div className="flex items-center gap-2.5">
+        <span className="grid h-8 min-w-8 shrink-0 place-items-center rounded-full bg-accent-soft px-2 text-xs font-extrabold text-accent-ink">
+          {profile.short}
+        </span>
+        <div className="min-w-0">
+          <div className="text-sm font-bold">{profile.label}</div>
+          <div className="truncate text-xs text-muted">กำลังใช้งาน</div>
+        </div>
+      </div>
+      <button
+        className="min-h-9 rounded-control border border-line-strong bg-surface text-xs font-bold text-ink-soft transition-colors duration-150 hover:bg-surface-3"
+        onClick={() => {
+          signOut();
+          onSignOut();
+        }}
+        type="button"
+      >
+        สลับทีม / ออกจากระบบ
+      </button>
+    </div>
+  );
+}
+
+function NavGroups({
+  activeJobId,
+  matrix,
+  pathname,
+  team,
+}: {
+  activeJobId?: string;
+  matrix: PermissionMatrix;
+  pathname: string;
+  team: Team;
+}) {
+  const visible = (key: MenuKey) => canView(matrix[team][key]);
+
+  const base: NavLink[] = baseMenus
+    .filter((entry) => visible(entry.key))
+    .map((entry) => ({ href: entry.href as string, label: entry.label, icon: menuIcons[entry.key] }));
+
+  const jobs: NavLink[] = activeJobId
+    ? jobMenus
+        .filter((entry) => visible(entry.key))
+        .map((entry) => ({
+          href: `/jobs/${activeJobId}/${entry.segment}`,
+          label: entry.label,
+          icon: menuIcons[entry.key],
+        }))
+    : [];
+
   return (
     <div className="grid gap-6">
-      <NavList links={baseLinks} pathname={pathname} />
-      {activeJobId ? (
-        <NavList
-          heading="งานปัจจุบัน"
-          links={jobLinks.map(({ segment, label, icon }) => ({
-            href: `/jobs/${activeJobId}/${segment}`,
-            label,
-            icon,
-          }))}
-          pathname={pathname}
-        />
-      ) : null}
+      <NavList links={base} pathname={pathname} />
+      {jobs.length > 0 ? <NavList heading="งานปัจจุบัน" links={jobs} pathname={pathname} /> : null}
     </div>
   );
 }
 
 function NavList({ heading, links, pathname }: { heading?: string; links: NavLink[]; pathname: string }) {
+  if (links.length === 0) return null;
+
   return (
     <nav aria-label={heading ?? "เมนูหลัก"} className="grid gap-0.5">
       {heading ? (

@@ -1,9 +1,15 @@
+"use client";
+
 import Link from "next/link";
+import { canEdit, canView, ownerTeamLabel, type MenuKey } from "@/domain/access";
 import { nextPhaseRequirements } from "@/domain/appraisal";
-import { Badge, LinkButton, Notice, PageHeader, Panel, PanelBody, PanelHead } from "./ui";
+import { AccessBanner, Badge, LinkButton, Notice, PageHeader, Panel, PanelBody, PanelHead } from "./ui";
+import { useAccess } from "./useAccess";
 
 export function FuturePage({ jobId, route }: { jobId?: string; route: string }) {
   const requirement = nextPhaseRequirements.find((item) => item.route === route);
+  const { permission } = useAccess();
+  const level = permission(route as MenuKey);
 
   return (
     <>
@@ -23,6 +29,10 @@ export function FuturePage({ jobId, route }: { jobId?: string; route: string }) 
         eyebrow="ระยะถัดไป"
         title={requirement?.title ?? "หน้าระยะถัดไป"}
       />
+
+      {canEdit(level) ? null : (
+        <AccessBanner level={canView(level) ? "read" : "none"} ownerLabel={ownerTeamLabel(route as MenuKey)} />
+      )}
 
       <Panel>
         <PanelHead

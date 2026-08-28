@@ -2,14 +2,18 @@
 
 import { Plus } from "lucide-react";
 import { useSyncExternalStore } from "react";
+import { canEdit } from "@/domain/access";
 import { calculateValuation, formatMoney, type AppraisalJob } from "@/domain/appraisal";
 import { listJobs, subscribeToJobs } from "@/infrastructure/storage/appraisalStore";
 import { EmptyState, LinkButton, PageHeader, Panel, StatusBadge } from "./ui";
+import { useAccess } from "./useAccess";
 
 const UNSET = "ยังไม่ระบุ";
 const NO_JOBS: AppraisalJob[] = [];
 
 export function Dashboard() {
+  const { permission } = useAccess();
+  const canCreate = canEdit(permission("newJob"));
   const jobs = useSyncExternalStore(subscribeToJobs, listJobs, emptyJobs);
 
   // คำนวณราคาครั้งเดียวต่องาน แล้วใช้ร่วมกันทั้งตาราง (desktop) และการ์ด (mobile)
@@ -18,10 +22,12 @@ export function Dashboard() {
     <>
       <PageHeader
         actions={
-          <LinkButton href="/jobs/new" variant="primary">
-            <Plus size={16} />
-            สร้างงานใหม่
-          </LinkButton>
+          canCreate ? (
+            <LinkButton href="/jobs/new" variant="primary">
+              <Plus size={16} />
+              สร้างงานใหม่
+            </LinkButton>
+          ) : undefined
         }
         description="เปิดงานร่างเดิมหรือเริ่มงานใหม่ ข้อมูลทั้งหมดใน prototype นี้ยังอยู่ในเบราว์เซอร์เครื่องที่ใช้งาน"
         eyebrow="งานประเมินทั้งหมด"
@@ -31,12 +37,18 @@ export function Dashboard() {
       {rows.length === 0 ? (
         <EmptyState
           action={
-            <LinkButton href="/jobs/new" variant="primary">
-              <Plus size={16} />
-              สร้างงานใหม่
-            </LinkButton>
+            canCreate ? (
+              <LinkButton href="/jobs/new" variant="primary">
+                <Plus size={16} />
+                สร้างงานใหม่
+              </LinkButton>
+            ) : undefined
           }
-          description="สร้างงานแรกเพื่อบันทึกเลขที่งาน ข้อมูลทรัพย์ รูปถ่าย และราคาประเมิน"
+          description={
+            canCreate
+              ? "สร้างงานแรกเพื่อบันทึกเลขที่งาน ข้อมูลทรัพย์ รูปถ่าย และราคาประเมิน"
+              : "ยังไม่มีงานที่ทีมคุณเข้าถึงได้ งานใหม่ถูกสร้างโดยทีม A"
+          }
           title="ยังไม่มีงานประเมิน"
         />
       ) : (

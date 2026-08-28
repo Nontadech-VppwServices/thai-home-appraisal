@@ -3,13 +3,17 @@
 import { Printer } from "lucide-react";
 import Image from "next/image";
 import { useSyncExternalStore } from "react";
+import { canView } from "@/domain/access";
 import { calculateValuation, formatMoney, formatNumber, type AppraisalJob } from "@/domain/appraisal";
 import { getJob, subscribeToJobs } from "@/infrastructure/storage/appraisalStore";
-import { Button, EmptyState, LinkButton, PageHeader, StatusBadge } from "./ui";
+import { AccessBanner, Button, EmptyState, LinkButton, PageHeader, StatusBadge } from "./ui";
+import { useAccess } from "./useAccess";
 
 const UNSET = "ยังไม่ระบุ";
 
 export function ReportPage({ jobId }: { jobId: string }) {
+  const { permission } = useAccess();
+  const hidden = !canView(permission("report"));
   const job = useSyncExternalStore(subscribeToJobs, () => getJob(jobId), emptyJob);
 
   if (!job) {
@@ -31,6 +35,7 @@ export function ReportPage({ jobId }: { jobId: string }) {
   return (
     <>
       <div className="print:hidden">
+        {hidden ? <AccessBanner level="none" ownerLabel={null} /> : null}
         <PageHeader
           actions={
             <>
