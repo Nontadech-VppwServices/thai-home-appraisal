@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateValuation, createEmptyJob } from "./appraisal";
+import { calculateValuation, createEmptyJob, normalizeChecklistState } from "./appraisal";
 
 describe("calculateValuation", () => {
   it("returns the manual price and basis", () => {
@@ -36,5 +36,18 @@ describe("calculateValuation", () => {
       price: 4_100_000,
       basis: "อ้างอิงจากทรัพย์เปรียบเทียบ",
     });
+  });
+});
+
+describe("normalizeChecklistState", () => {
+  it("แทรกช่องข้อมูลอ้างอิงโดยไม่เลื่อนความหมายของ checklist รุ่นเดิม", () => {
+    expect(normalizeChecklistState([true, false, true, true, false])).toEqual([
+      true,
+      false,
+      true,
+      false,
+      true,
+      false,
+    ]);
   });
 });

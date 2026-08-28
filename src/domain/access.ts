@@ -16,10 +16,12 @@ export type PermissionLevel = "none" | "read" | "edit";
 export type MenuKey =
   | "jobs"
   | "newJob"
+  | "insights"
   | "intake"
   | "workflow"
   | "property"
   | "photos"
+  | "references"
   | "valuation"
   | "report"
   | "review"
@@ -44,7 +46,7 @@ export const teamProfiles: Record<Team, { label: string; short: string; duty: st
     label: "ทีม B",
     short: "B",
     duty: "ลงพื้นที่ประเมินบ้านจริงตามข้อมูลของทีม A",
-    scope: "แก้ข้อมูลทรัพย์ รูปถ่าย และราคาได้ ส่วนข้อมูลจากทีม A อ่านได้อย่างเดียว",
+    scope: "แก้ข้อมูลทรัพย์ รูปถ่าย ข้อมูลอ้างอิง และราคาได้ ส่วนข้อมูลจากทีม A อ่านได้อย่างเดียว",
   },
   teamC: {
     label: "ทีม C",
@@ -54,7 +56,7 @@ export const teamProfiles: Record<Team, { label: string; short: string; duty: st
   },
   admin: {
     label: "ผู้ดูแลระบบ",
-    short: "All",
+    short: "Admin",
     duty: "ดูแลระบบและกำหนดสิทธิ์ของแต่ละทีม",
     scope: "เข้าถึงได้ทุกเมนู และเป็นทีมเดียวที่ปรับตารางสิทธิ์ได้",
   },
@@ -71,12 +73,14 @@ export type MenuEntry = {
 export const menuCatalog: MenuEntry[] = [
   { key: "jobs", label: "รายการประเมิน", href: "/" },
   { key: "newJob", label: "สร้างงาน", href: "/jobs/new" },
+  { key: "insights", label: "รายงานภาพรวม", href: "/insights" },
   { key: "permissions", label: "กำหนดสิทธิ์", href: "/permissions" },
   { key: "security", label: "ความปลอดภัย", href: "/security" },
   { key: "intake", label: "รับงาน (ทีม A)", segment: "intake" },
   { key: "workflow", label: "ข้อมูลงาน", segment: "workflow" },
   { key: "property", label: "ทรัพย์สิน", segment: "property" },
   { key: "photos", label: "รูปถ่าย", segment: "photos" },
+  { key: "references", label: "ข้อมูลอ้างอิงราคา", segment: "references" },
   { key: "valuation", label: "ประเมินราคา", segment: "valuation" },
   { key: "report", label: "รายงาน", segment: "report" },
   { key: "review", label: "ตรวจสอบ", segment: "review" },
@@ -91,10 +95,12 @@ export const defaultMatrix: PermissionMatrix = {
   teamA: {
     jobs: "read",
     newJob: "edit",
+    insights: "none",
     intake: "edit",
     workflow: "edit",
     property: "read",
     photos: "read",
+    references: "read",
     valuation: "read",
     report: "read",
     review: "edit",
@@ -109,10 +115,12 @@ export const defaultMatrix: PermissionMatrix = {
   teamB: {
     jobs: "read",
     newJob: "none",
+    insights: "none",
     intake: "read",
     workflow: "read",
     property: "edit",
     photos: "edit",
+    references: "edit",
     valuation: "edit",
     report: "read",
     review: "read",
@@ -126,10 +134,12 @@ export const defaultMatrix: PermissionMatrix = {
   teamC: {
     jobs: "read",
     newJob: "none",
+    insights: "none",
     intake: "read",
     workflow: "read",
     property: "read",
     photos: "read",
+    references: "read",
     valuation: "read",
     report: "read",
     review: "edit",
@@ -142,10 +152,12 @@ export const defaultMatrix: PermissionMatrix = {
   admin: {
     jobs: "edit",
     newJob: "edit",
+    insights: "edit",
     intake: "edit",
     workflow: "edit",
     property: "edit",
     photos: "edit",
+    references: "edit",
     valuation: "edit",
     report: "edit",
     review: "edit",

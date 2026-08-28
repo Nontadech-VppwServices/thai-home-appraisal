@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ChevronDown, EyeOff, Lock, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
+import { statusLabels, type JobStatus } from "@/domain/appraisal";
 
 function classes(...items: Array<string | false | undefined>) {
   return items.filter(Boolean).join(" ");
@@ -251,11 +252,12 @@ export function EmptyState({
    Status / data display
 -------------------------------------------------------------------------- */
 
-type BadgeTone = "neutral" | "accent" | "success" | "warning" | "danger";
+type BadgeTone = "neutral" | "accent" | "action" | "success" | "warning" | "danger";
 
 const badgeTones: Record<BadgeTone, string> = {
   neutral: "bg-surface-3 text-ink-soft",
   accent: "bg-accent-soft text-accent-ink",
+  action: "bg-action-soft text-action",
   success: "bg-success-soft text-success",
   warning: "bg-warning-soft text-warning",
   danger: "bg-danger-soft text-danger",
@@ -283,12 +285,20 @@ export function Badge({
   );
 }
 
+const statusTones: Record<JobStatus, BadgeTone> = {
+  intake: "neutral",
+  assigned: "accent",
+  changesRequested: "warning",
+  readyToSubmit: "action",
+  submitted: "success",
+};
+
 /** สถานะงานถูกใช้ซ้ำในหลายหน้า จึงรวมการแปลงค่าไว้จุดเดียว */
-export function StatusBadge({ saved }: { saved: boolean }) {
+export function StatusBadge({ status }: { status: JobStatus }) {
   return (
-    <Badge tone={saved ? "success" : "neutral"}>
+    <Badge tone={statusTones[status]}>
       <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />
-      {saved ? "บันทึกแล้ว" : "แบบร่าง"}
+      {statusLabels[status]}
     </Badge>
   );
 }

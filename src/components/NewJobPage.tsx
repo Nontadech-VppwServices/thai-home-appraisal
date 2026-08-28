@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { canEdit, canView, ownerTeamLabel } from "@/domain/access";
 import { bankOptions } from "@/domain/appraisal";
-import { createDraftJob, saveDraft } from "@/infrastructure/storage/appraisalStore";
+import { createDraftJob, saveJob } from "@/infrastructure/storage/appraisalStore";
 import { AccessBanner, Button, Field, FormSection, Input, PageHeader, Panel, Select } from "./ui";
 import { useAccess } from "./useAccess";
 
@@ -18,7 +18,7 @@ export function NewJobPage() {
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (readOnly) return;
-    saveDraft(job);
+    saveJob(job);
     router.push(`/jobs/${job.id}/workflow`);
   }
 

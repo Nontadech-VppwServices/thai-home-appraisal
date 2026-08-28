@@ -82,6 +82,8 @@ Component ควรรับ props ที่ชัดเจน ควบคุ�
 
 หน้าแต่ละหน้าควรประกอบจาก component เหล่านี้ โดย business rule และการบันทึกข้อมูลอยู่ใน use case ตาม [architecture-stack.md](architecture-stack.md)
 
+ไม่จำเป็นต้องเขียน component ใหม่ทั้งหมด ให้ใช้ component ที่มีอยู่แล้วในรายการข้างต้นก่อนเสมอถ้าตรงความหมาย และเมื่อมี UI ใหม่ที่ต้องเขียนจริง ๆ ให้แยกเป็น component ในไฟล์ของตัวเองแล้ว import มาเรียกใช้ในหน้า ห้ามเขียน markup ฝังอยู่ในไฟล์ page โดยตรง
+
 ## สถานะและ accessibility
 
 ทุก workflow สำคัญต้องออกแบบ state ให้ครบ:

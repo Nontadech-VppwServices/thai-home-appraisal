@@ -5,7 +5,8 @@ import Image from "next/image";
 import { useSyncExternalStore } from "react";
 import { canView } from "@/domain/access";
 import { calculateValuation, formatMoney, formatNumber, type AppraisalJob } from "@/domain/appraisal";
-import { getJob, subscribeToJobs } from "@/infrastructure/storage/appraisalStore";
+import { sourceLabels, summarizePriceReferences, unitLabels, type PriceReferenceSnapshot } from "@/domain/priceReferences";
+import { getJob, getSelectedPriceReferences, subscribeToJobs } from "@/infrastructure/storage/appraisalStore";
 import { AccessBanner, Button, EmptyState, LinkButton, PageHeader, StatusBadge } from "./ui";
 import { useAccess } from "./useAccess";
 
@@ -31,6 +32,8 @@ export function ReportPage({ jobId }: { jobId: string }) {
   }
 
   const valuation = calculateValuation(job.property, job.valuation);
+  const references = getSelectedPriceReferences(job);
+  const referenceSummaries = summarizePriceReferences(references);
 
   return (
     <>
@@ -65,7 +68,7 @@ export function ReportPage({ jobId }: { jobId: string }) {
               จัดทำเพื่อใช้ตรวจสอบภายใน prototype ยังไม่ส่งข้อมูลจริงไปธนาคาร
             </p>
           </div>
-          <StatusBadge saved={job.status === "saved"} />
+          <StatusBadge status={job.status} />
         </header>
 
         <dl className="my-6 grid gap-x-8 gap-y-5 md:grid-cols-2">
@@ -87,6 +90,49 @@ export function ReportPage({ jobId }: { jobId: string }) {
           <ReportField label="ที่อยู่" value={job.property.address} wide />
           <ReportField label="รายละเอียดเพิ่มเติม" value={job.property.description} wide />
         </dl>
+
+        <section className="report-line border-t pt-5">
+          <h2 className="text-lg font-bold">ข้อมูลอ้างอิงราคา</h2>
+          {references.length === 0 ? (
+            <p className="report-muted mt-2 text-sm">ไม่มีข้อมูลอ้างอิงที่เลือกไว้ ผู้ประเมินดำเนินงานต่อได้โดยระบบไม่บล็อก</p>
+          ) : (
+            <>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                {referenceSummaries.map((summary) => (
+                  <div className="report-line rounded-lg border p-3" key={`${summary.sourceCategory}-${summary.unit}`}>
+                    <div className="report-muted text-xs font-bold">{sourceLabels[summary.sourceCategory]} · {unitLabels[summary.unit]}</div>
+                    <div className="tnum mt-1 text-sm font-semibold">
+                      {formatNumber(summary.minimum)} – <strong>{formatNumber(summary.median)}</strong> – {formatNumber(summary.maximum)}
+                    </div>
+                    <div className="report-muted mt-1 text-xs">ต่ำสุด · ค่ากลาง · สูงสุด ({summary.count} รายการ)</div>
+                  </div>
+                ))}
+              </div>
+              <ol className="mt-4 grid gap-3">
+                {references.map((reference, index) => {
+                  const selection = job.selectedReferences.find((item) => item.referenceId === reference.id);
+                  return (
+                    <li className="report-line rounded-lg border p-4" key={reference.id}>
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <strong className="text-sm">{index + 1}. {sourceLabels[reference.sourceCategory]}</strong>
+                        <span className="tnum text-sm font-extrabold">{referencePriceLabel(reference)}</span>
+                      </div>
+                      <dl className="mt-3 grid gap-x-6 gap-y-2 text-xs md:grid-cols-2">
+                        <ReportField label="แหล่งข้อมูล" value={reference.providerName} />
+                        <ReportField label="วันที่ข้อมูล / วันที่นำเข้า" value={`${reference.observedAt || UNSET} / ${reference.capturedAt.slice(0, 10) || UNSET}`} />
+                        <ReportField label="ประเภท / พื้นที่" value={`${reference.propertyType || UNSET} · ${reference.landArea ? `${formatNumber(reference.landArea)} ตร.วา` : "-"} · ${reference.usableArea ? `${formatNumber(reference.usableArea)} ตร.ม.` : "-"}`} />
+                        <ReportField label="พิกัด" value={`${reference.latitude || "-"}, ${reference.longitude || "-"}`} />
+                        <ReportField label="ที่อยู่" value={reference.address} wide />
+                        <ReportField label="หมายเหตุการปรับเทียบ" value={selection?.adjustmentNote || "ไม่ได้ระบุ"} wide />
+                        <ReportField label="URL ต้นทาง" value={reference.sourceUrl || "ข้อมูลเดิมไม่ทราบ URL"} wide />
+                      </dl>
+                    </li>
+                  );
+                })}
+              </ol>
+            </>
+          )}
+        </section>
 
         <section className="report-line border-t pt-5">
           <h2 className="text-lg font-bold">รูปถ่ายหลักฐาน</h2>
@@ -119,6 +165,15 @@ export function ReportPage({ jobId }: { jobId: string }) {
       </article>
     </>
   );
+}
+
+function referencePriceLabel(reference: PriceReferenceSnapshot): string {
+  const prices: string[] = [];
+  if (reference.totalPrice > 0) prices.push(formatMoney(reference.totalPrice));
+  if (reference.unitPrice > 0 && reference.unit !== "none") {
+    prices.push(`${formatNumber(reference.unitPrice)} ${unitLabels[reference.unit]}`);
+  }
+  return prices.join(" · ") || UNSET;
 }
 
 function emptyJob(): AppraisalJob | null {

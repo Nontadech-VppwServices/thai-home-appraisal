@@ -2,6 +2,7 @@
 
 import { Printer, Save, Trash2 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChangeEvent, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
@@ -12,11 +13,13 @@ import {
   formatMoney,
   formatNumber,
   propertyTypeOptions,
+  statusLabels,
   type AppraisalJob,
   type ValuationMethod,
 } from "@/domain/appraisal";
+import { sourceLabels, summarizePriceReferences, unitLabels, type PriceReferenceSnapshot } from "@/domain/priceReferences";
 import { canEdit, canView, ownerTeamLabel, type MenuKey } from "@/domain/access";
-import { getJob, removeJob, saveDraft, saveJob, subscribeToJobs } from "@/infrastructure/storage/appraisalStore";
+import { getJob, getSelectedPriceReferences, removeJob, saveJob, subscribeToJobs } from "@/infrastructure/storage/appraisalStore";
 import {
   AccessBanner,
   Badge,
@@ -46,10 +49,11 @@ type Section = "workflow" | "property" | "photos" | "valuation";
 
 const MAX_PHOTOS = 12;
 
-const steps: { section: Section | "report"; label: string }[] = [
+const steps: { section: Section | "references" | "report"; label: string }[] = [
   { section: "workflow", label: "ข้อมูลงาน" },
   { section: "property", label: "ทรัพย์สิน" },
   { section: "photos", label: "รูปถ่าย" },
+  { section: "references", label: "ข้อมูลอ้างอิง" },
   { section: "valuation", label: "ประเมินราคา" },
   { section: "report", label: "รายงาน" },
 ];
@@ -75,7 +79,7 @@ export function AppraisalWorkspace({ jobId, section }: { jobId: string; section:
     setSaveState("กำลังบันทึกอัตโนมัติ");
     const timer = window.setTimeout(() => {
       try {
-        saveDraft({ ...job, status: "draft" });
+        saveJob(job);
         setSaveState("บันทึกอัตโนมัติแล้ว");
       } catch {
         setSaveState("บันทึกไม่สำเร็จ");
@@ -100,7 +104,6 @@ export function AppraisalWorkspace({ jobId, section }: { jobId: string; section:
     if (!job) return;
     try {
       saveJob(job);
-      setJob({ ...job, status: "saved" });
       setSaveState("บันทึกแล้ว");
       showToast("บันทึกงานไว้ในเครื่องแล้ว");
     } catch {
@@ -130,7 +133,7 @@ export function AppraisalWorkspace({ jobId, section }: { jobId: string; section:
   }
 
   const valuation = calculateValuation(job.property, job.valuation);
-  const saved = job.status === "saved";
+  const selectedReferenceSnapshots = getSelectedPriceReferences(job);
 
   return (
     <>
@@ -176,7 +179,7 @@ export function AppraisalWorkspace({ jobId, section }: { jobId: string; section:
       />
 
       <section aria-label="สรุปงาน" className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
-        <StatCard label="สถานะงาน" value={saved ? "บันทึกแล้ว" : "แบบร่าง"} />
+        <StatCard label="สถานะงาน" value={statusLabels[job.status]} />
         <StatCard label="รูปหลักฐาน" unit="รูป" value={String(job.photos.length)} />
         <StatCard label="พื้นที่ใช้สอย" unit="ตร.ม." value={formatNumber(job.property.usableArea)} />
         <StatCard
@@ -193,7 +196,7 @@ export function AppraisalWorkspace({ jobId, section }: { jobId: string; section:
               readOnly ? (
                 <Badge tone="neutral">อ่านอย่างเดียว</Badge>
               ) : (
-                <Badge tone={saved ? "success" : "neutral"}>{saveState}</Badge>
+                <Badge tone={saveState === "บันทึกไม่สำเร็จ" ? "danger" : "neutral"}>{saveState}</Badge>
               )
             }
             title={pageTitle(section)}
@@ -232,6 +235,16 @@ export function AppraisalWorkspace({ jobId, section }: { jobId: string; section:
               <Notice>
                 Prototype นี้บันทึกข้อมูลไว้ในเบราว์เซอร์เครื่องนี้เท่านั้น ยังไม่มีการส่งข้อมูลจริงไปธนาคาร
               </Notice>
+              {job.selectedReferences.length === 0 ? (
+                <Notice>
+                  ยังไม่ได้เลือกข้อมูลอ้างอิงราคา ระบบจะแจ้งเตือนแต่ไม่บล็อกการส่งงาน
+                  {canView(permission("references")) ? (
+                    <span> — <Link className="font-bold underline underline-offset-2" href={`/jobs/${job.id}/references`}>ไปค้นข้อมูลอ้างอิง</Link></span>
+                  ) : null}
+                </Notice>
+              ) : (
+                <Notice tone="success">เลือกข้อมูลอ้างอิงแล้ว {selectedReferenceSnapshots.length} รายการ</Notice>
+              )}
             </PanelBody>
           </Panel>
         </aside>
@@ -254,7 +267,7 @@ function WorkflowSection({ job, setJob }: SectionProps) {
           <Input
             id="wf-caseId"
             onChange={(event) =>
-              setJob({ ...job, status: "draft", workflow: { ...job.workflow, caseId: event.target.value } })
+              setJob({ ...job, workflow: { ...job.workflow, caseId: event.target.value } })
             }
             placeholder="เช่น APP-2026-0001"
             value={job.workflow.caseId}
@@ -264,7 +277,7 @@ function WorkflowSection({ job, setJob }: SectionProps) {
           <Input
             id="wf-visitDate"
             onChange={(event) =>
-              setJob({ ...job, status: "draft", workflow: { ...job.workflow, visitDate: event.target.value } })
+              setJob({ ...job, workflow: { ...job.workflow, visitDate: event.target.value } })
             }
             type="date"
             value={job.workflow.visitDate}
@@ -274,7 +287,7 @@ function WorkflowSection({ job, setJob }: SectionProps) {
           <Input
             id="wf-clientName"
             onChange={(event) =>
-              setJob({ ...job, status: "draft", workflow: { ...job.workflow, clientName: event.target.value } })
+              setJob({ ...job, workflow: { ...job.workflow, clientName: event.target.value } })
             }
             placeholder="ชื่อบุคคลหรือองค์กร"
             value={job.workflow.clientName}
@@ -284,7 +297,7 @@ function WorkflowSection({ job, setJob }: SectionProps) {
           <Select
             id="wf-bank"
             onChange={(event) =>
-              setJob({ ...job, status: "draft", workflow: { ...job.workflow, bank: event.target.value } })
+              setJob({ ...job, workflow: { ...job.workflow, bank: event.target.value } })
             }
             value={job.workflow.bank}
           >
@@ -442,7 +455,6 @@ function PhotosSection({ job, setJob, showToast }: SectionProps & { showToast: (
           current
             ? {
                 ...current,
-                status: "draft",
                 photos: [
                   ...current.photos,
                   { id: `${Date.now()}-${file.name}`, name: file.name, dataUrl: String(reader.result) },
@@ -473,7 +485,6 @@ function PhotosSection({ job, setJob, showToast }: SectionProps & { showToast: (
                   onRemove={() =>
                     setJob({
                       ...job,
-                      status: "draft",
                       photos: job.photos.filter((item) => item.id !== photo.id),
                     })
                   }
@@ -498,6 +509,7 @@ function PhotosSection({ job, setJob, showToast }: SectionProps & { showToast: (
 
 function ValuationSection({ job, setJob }: SectionProps) {
   const result = calculateValuation(job.property, job.valuation);
+  const references = getSelectedPriceReferences(job);
   return (
     <FormSection description="เลือกวิธีประเมินและบันทึกที่มาของผลลัพธ์ให้ผู้ตรวจสอบเข้าใจได้" title="วิธีประเมินราคา">
       <div className="grid gap-4 md:grid-cols-2">
@@ -556,7 +568,45 @@ function ValuationSection({ job, setJob }: SectionProps) {
         {" · "}
         {result.price > 0 ? result.basis : "กรุณากรอกข้อมูลราคา"}
       </Notice>
+
+      <ReferenceSummary jobId={job.id} references={references} />
     </FormSection>
+  );
+}
+
+function ReferenceSummary({ jobId, references }: { jobId: string; references: PriceReferenceSnapshot[] }) {
+  const summaries = summarizePriceReferences(references);
+  if (references.length === 0) {
+    return (
+      <Notice>
+        ยังไม่มีข้อมูลอ้างอิงที่เลือกไว้ ราคาในหน้านี้ยังกรอกได้ตามดุลยพินิจของผู้ประเมิน
+      </Notice>
+    );
+  }
+
+  return (
+    <section className="grid gap-3 border-t border-line pt-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 className="text-base font-bold">ช่วงราคาจากข้อมูลที่เลือก</h3>
+          <p className="text-sm text-muted">แยกตามแหล่งและหน่วย ระบบไม่นำคนละกลุ่มมาเฉลี่ยรวมกัน</p>
+        </div>
+        <LinkButton href={`/jobs/${jobId}/references`} size="sm">
+          จัดการข้อมูลอ้างอิง
+        </LinkButton>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        {summaries.map((summary) => (
+          <div className="rounded-control border border-line bg-surface-2 p-4" key={`${summary.sourceCategory}-${summary.unit}`}>
+            <div className="text-xs font-bold text-muted">{sourceLabels[summary.sourceCategory]} · {unitLabels[summary.unit]}</div>
+            <div className="tnum mt-2 text-sm font-semibold">
+              {formatNumber(summary.minimum)} – <strong className="text-base font-extrabold">{formatNumber(summary.median)}</strong> – {formatNumber(summary.maximum)}
+            </div>
+            <div className="mt-1 text-xs text-muted">ต่ำสุด · ค่ากลาง · สูงสุด ({summary.count} รายการ)</div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -566,17 +616,17 @@ type SectionProps = {
 };
 
 function updateProperty<Key extends keyof AppraisalJob["property"]>(job: AppraisalJob, setJob: SectionProps["setJob"], key: Key, value: AppraisalJob["property"][Key]) {
-  setJob({ ...job, status: "draft", property: { ...job.property, [key]: value } });
+  setJob({ ...job, property: { ...job.property, [key]: value } });
 }
 
 function updateValuation<Key extends keyof AppraisalJob["valuation"]>(job: AppraisalJob, setJob: SectionProps["setJob"], key: Key, value: AppraisalJob["valuation"][Key]) {
-  setJob({ ...job, status: "draft", valuation: { ...job.valuation, [key]: value } });
+  setJob({ ...job, valuation: { ...job.valuation, [key]: value } });
 }
 
 function updateCheck(job: AppraisalJob, setJob: SectionProps["setJob"], index: number, checked: boolean) {
   const checks = [...job.checks];
   checks[index] = checked;
-  setJob({ ...job, status: "draft", checks });
+  setJob({ ...job, checks });
 }
 
 function numberValue(event: ChangeEvent<HTMLInputElement>): number {

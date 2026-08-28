@@ -19,7 +19,7 @@ import {
 const roleTable: { action: string; menus: MenuKey[]; allowed: Team[] }[] = [
   { action: "บันทึกงานจากธนาคารและแก้ข้อมูลอ้างอิงธนาคาร", menus: ["newJob", "intake", "workflow"], allowed: ["teamA"] },
   { action: "มอบหมายงานให้ผู้ประเมิน", menus: ["intake"], allowed: ["teamA"] },
-  { action: "แก้ข้อมูลทรัพย์ รูปถ่าย และราคา", menus: ["property", "photos", "valuation"], allowed: ["teamB"] },
+  { action: "แก้ข้อมูลทรัพย์ รูปถ่าย ข้อมูลอ้างอิง และราคา", menus: ["property", "photos", "references", "valuation"], allowed: ["teamB"] },
   { action: "บันทึกการส่งธนาคาร", menus: ["handoff", "export", "integration"], allowed: ["teamC"] },
   { action: "ตีกลับงาน", menus: ["review"], allowed: ["teamA", "teamC"] },
 ];

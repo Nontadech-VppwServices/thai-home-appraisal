@@ -1,21 +1,32 @@
-import { createEmptyJob, type AppraisalJob } from "@/domain/appraisal";
+import { calculateValuation, createEmptyJob, normalizeChecklistState, normalizeStoredJob, type AppraisalJob } from "@/domain/appraisal";
+import {
+  normalizePriceReference,
+  migrateLegacyComparablePrices,
+  resolvePriceReferenceCapture,
+  type PriceReferenceSnapshot,
+} from "@/domain/priceReferences";
+import type { Team } from "@/domain/access";
 
 const STORAGE_KEY = "thaiHomeAppraisals:v1";
 const LEGACY_STORAGE_KEY = "thaiHomeAppraisal";
 const STORE_EVENT = "thai-home-appraisal-store-change";
 
 type StoredJobs = Record<string, AppraisalJob>;
+type StoredReferences = Record<string, PriceReferenceSnapshot>;
 
 type StoredState = {
   jobs: StoredJobs;
+  references: StoredReferences;
   currentJobId: string | null;
 };
 
-const emptyState: StoredState = { jobs: {}, currentJobId: null };
+const emptyState: StoredState = { jobs: {}, references: {}, currentJobId: null };
 let cachedRawValue: string | null = null;
 let cachedStateValue: StoredState = emptyState;
 let cachedListState: StoredState | null = null;
 let cachedListValue: AppraisalJob[] = [];
+let cachedReferenceState: StoredState | null = null;
+let cachedReferenceValue: PriceReferenceSnapshot[] = [];
 
 export function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -48,18 +59,118 @@ export function getCurrentJobId(): string | null {
   return readState().currentJobId;
 }
 
+/** คลัง snapshot กลางของ prototype (ยังจำกัดอยู่ใน browser เครื่องนี้) */
+export function listPriceReferences(): PriceReferenceSnapshot[] {
+  const state = readState();
+  if (cachedReferenceState === state) return cachedReferenceValue;
+  cachedReferenceState = state;
+  cachedReferenceValue = Object.values(state.references).sort((a, b) => b.capturedAt.localeCompare(a.capturedAt));
+  return cachedReferenceValue;
+}
+
+export function getSelectedPriceReferences(job: AppraisalJob): PriceReferenceSnapshot[] {
+  const references = readState().references;
+  return job.selectedReferences.flatMap((selection) => references[selection.referenceId] ?? []);
+}
+
+/**
+ * บันทึก snapshot และผูกกับงานใน transaction เดียวของ localStorage
+ * ถ้าพบ dedupe key เดิมจะ reuse snapshot เดิม ไม่สร้างสำเนาซ้ำ
+ */
+export function captureAndSelectPriceReference(
+  jobId: string,
+  snapshot: PriceReferenceSnapshot,
+  selectedBy: Team,
+  adjustmentNote = "",
+): string {
+  const state = readState();
+  const job = state.jobs[jobId];
+  if (!job) throw new Error("ไม่พบงานประเมิน");
+
+  const reference = resolvePriceReferenceCapture(Object.values(state.references), snapshot);
+
+  const alreadySelected = job.selectedReferences.some((item) => item.referenceId === reference.id);
+  const now = new Date().toISOString();
+  const selectedReferences = alreadySelected
+    ? job.selectedReferences
+    : [...job.selectedReferences, { referenceId: reference.id, selectedAt: now, selectedBy, adjustmentNote }];
+
+  writeState({
+    jobs: { ...state.jobs, [jobId]: { ...job, selectedReferences, updatedAt: now } },
+    references: { ...state.references, [reference.id]: reference },
+    currentJobId: jobId,
+  });
+  return reference.id;
+}
+
+export function updateSelectedReferenceNote(jobId: string, referenceId: string, adjustmentNote: string): void {
+  const state = readState();
+  const job = state.jobs[jobId];
+  if (!job) return;
+  const selectedReferences = job.selectedReferences.map((item) =>
+    item.referenceId === referenceId ? { ...item, adjustmentNote } : item,
+  );
+  writeState({
+    ...state,
+    jobs: { ...state.jobs, [jobId]: { ...job, selectedReferences, updatedAt: new Date().toISOString() } },
+    currentJobId: jobId,
+  });
+}
+
+export function unselectPriceReference(jobId: string, referenceId: string): void {
+  const state = readState();
+  const job = state.jobs[jobId];
+  if (!job) return;
+  writeState({
+    ...state,
+    jobs: {
+      ...state.jobs,
+      [jobId]: {
+        ...job,
+        selectedReferences: job.selectedReferences.filter((item) => item.referenceId !== referenceId),
+        updatedAt: new Date().toISOString(),
+      },
+    },
+    currentJobId: jobId,
+  });
+}
+
+/** สร้าง candidate จากผลประเมินเก่า โดยยังไม่บันทึกจนกว่าทีม B จะเลือก */
+export function listInternalJobReferences(excludeJobId: string): PriceReferenceSnapshot[] {
+  return listJobs().flatMap((job) => {
+    if (job.id === excludeJobId || job.property.latitude === "" || job.property.longitude === "") return [];
+    const price = calculateValuation(job.property, job.valuation).price;
+    if (price <= 0) return [];
+    const useUsableArea = job.property.usableArea > 0;
+    return [{
+      id: `internal-job-${job.id}-${job.updatedAt}`,
+      revisionOf: null,
+      sourceCategory: "internal" as const,
+      providerName: "คลังงานประเมินของบริษัท",
+      sourceUrl: `/jobs/${job.id}/report`,
+      externalReference: job.workflow.caseId || job.id,
+      originalJobId: job.id,
+      propertyType: job.property.propertyType,
+      address: job.property.address,
+      latitude: job.property.latitude,
+      longitude: job.property.longitude,
+      totalPrice: price,
+      unitPrice: useUsableArea ? price / job.property.usableArea : job.property.landArea > 0 ? price / job.property.landArea : 0,
+      unit: useUsableArea ? "perSqM" as const : job.property.landArea > 0 ? "perSqWah" as const : "none" as const,
+      landArea: job.property.landArea,
+      usableArea: job.property.usableArea,
+      observedAt: job.updatedAt.slice(0, 10),
+      capturedAt: job.updatedAt.includes("T") ? job.updatedAt : `${job.updatedAt}T00:00:00.000Z`,
+      capturedBy: "admin" as const,
+    }];
+  });
+}
+
 export function saveJob(job: AppraisalJob): void {
   const state = readState();
   const now = new Date().toISOString();
-  const nextJob = { ...job, status: "saved" as const, updatedAt: now };
-  writeState({ jobs: { ...state.jobs, [job.id]: nextJob }, currentJobId: job.id });
-}
-
-export function saveDraft(job: AppraisalJob): void {
-  const state = readState();
-  const now = new Date().toISOString();
   const nextJob = { ...job, updatedAt: now };
-  writeState({ jobs: { ...state.jobs, [job.id]: nextJob }, currentJobId: job.id });
+  writeState({ ...state, jobs: { ...state.jobs, [job.id]: nextJob }, currentJobId: job.id });
 }
 
 export function removeJob(jobId: string): void {
@@ -67,7 +178,31 @@ export function removeJob(jobId: string): void {
   const jobs = { ...state.jobs };
   delete jobs[jobId];
   const currentJobId = state.currentJobId === jobId ? null : state.currentJobId;
-  writeState({ jobs, currentJobId });
+  writeState({ ...state, jobs, currentJobId });
+}
+
+/** บันทึกหลายงานพร้อมกัน ใช้ตอนสร้างข้อมูลตัวอย่าง จึงไม่แตะ currentJobId */
+export function saveJobs(jobs: AppraisalJob[]): void {
+  const state = readState();
+  const nextJobs = { ...state.jobs };
+  for (const job of jobs) nextJobs[job.id] = job;
+  writeState({ ...state, jobs: nextJobs, currentJobId: state.currentJobId });
+}
+
+/** ลบงานที่ตรงเงื่อนไข คืนจำนวนที่ลบ ใช้ล้างข้อมูลตัวอย่างโดยไม่แตะงานจริง */
+export function removeJobs(predicate: (job: AppraisalJob) => boolean): number {
+  const state = readState();
+  const nextJobs: StoredJobs = {};
+  let removed = 0;
+  for (const job of Object.values(state.jobs)) {
+    if (predicate(job)) removed += 1;
+    else nextJobs[job.id] = job;
+  }
+  if (removed === 0) return 0;
+
+  const currentJobId = state.currentJobId && nextJobs[state.currentJobId] ? state.currentJobId : null;
+  writeState({ ...state, jobs: nextJobs, currentJobId });
+  return removed;
 }
 
 export function subscribeToJobs(callback: () => void): () => void {
@@ -98,24 +233,58 @@ function writeState(state: StoredState): void {
   cachedRawValue = serialized;
   cachedStateValue = state;
   cachedListState = null;
+  cachedReferenceState = null;
   window.localStorage.setItem(STORAGE_KEY, serialized);
   window.dispatchEvent(new Event(STORE_EVENT));
+}
+
+/**
+ * แปลงข้อมูลจาก localStorage ให้เป็น AppraisalJob ที่ครบตาม schema ปัจจุบัน
+ * ทำที่นี่จุดเดียวเพราะรันครั้งเดียวต่อค่าดิบหนึ่งค่า แล้วผลถูกเก็บใน cachedStateValue
+ * ห้ามย้ายไป listJobs/getJob เพราะจะสร้าง object ใหม่ทุกครั้งที่ useSyncExternalStore อ่าน snapshot
+ * และห้ามเขียนกลับที่นี่ ค่าที่ซ่อมแล้วจะถูกบันทึกเองตอน save ครั้งถัดไป
+ */
+function normalizeJobs(raw: unknown): StoredJobs {
+  if (typeof raw !== "object" || raw === null) return {};
+  const today = todayISO();
+  const jobs: StoredJobs = {};
+  for (const value of Object.values(raw as Record<string, unknown>)) {
+    const job = normalizeStoredJob(value, today);
+    if (job) jobs[job.id] = job;
+  }
+  return jobs;
+}
+
+function normalizeReferences(raw: unknown): StoredReferences {
+  if (typeof raw !== "object" || raw === null) return {};
+  const references: StoredReferences = {};
+  for (const value of Object.values(raw as Record<string, unknown>)) {
+    const reference = normalizePriceReference(value);
+    if (reference) references[reference.id] = reference;
+  }
+  return references;
 }
 
 function parseState(value: string): StoredState {
   try {
     const parsed = JSON.parse(value) as StoredState;
     cachedRawValue = value;
+    const jobs = normalizeJobs(parsed.jobs);
+    const references = normalizeReferences(parsed.references);
+    migrateLegacyComparablePrices(jobs, references);
     cachedStateValue = {
-      jobs: parsed.jobs ?? {},
+      jobs,
+      references,
       currentJobId: parsed.currentJobId ?? null,
     };
     cachedListState = null;
+    cachedReferenceState = null;
     return cachedStateValue;
   } catch {
     cachedRawValue = value;
     cachedStateValue = emptyState;
     cachedListState = null;
+    cachedReferenceState = null;
     return emptyState;
   }
 }
@@ -158,14 +327,14 @@ function migrateLegacyJob(): StoredState | null {
       rate: numberField(legacy.fields?.rate),
       comparePrice: numberField(legacy.fields?.comparePrice),
     };
-    job.checks = legacy.checks ?? job.checks;
+    job.checks = normalizeChecklistState(legacy.checks) ?? job.checks;
     job.photos = (legacy.photos ?? []).map((dataUrl, index) => ({
       id: `${job.id}-legacy-photo-${index}`,
       name: `รูปหลักฐาน ${index + 1}`,
       dataUrl,
     }));
 
-    const state = { jobs: { [job.id]: job }, currentJobId: job.id };
+    const state = { jobs: { [job.id]: job }, references: {}, currentJobId: job.id };
     writeState(state);
     return state;
   } catch {

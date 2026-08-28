@@ -86,7 +86,7 @@ export function Dashboard() {
                       <td className="px-4 py-3.5 text-sm text-ink-soft">{job.workflow.bank || UNSET}</td>
                       <td className="tnum px-4 py-3.5 text-sm font-bold whitespace-nowrap">{price}</td>
                       <td className="px-4 py-3.5">
-                        <StatusBadge saved={job.status === "saved"} />
+                        <StatusBadge status={job.status} />
                       </td>
                       <td className="px-4 py-3.5 text-right">
                         <LinkButton href={`/jobs/${job.id}/workflow`} size="sm">
@@ -112,7 +112,7 @@ export function Dashboard() {
                         {job.workflow.caseId || UNSET}
                       </h2>
                     </div>
-                    <StatusBadge saved={job.status === "saved"} />
+                    <StatusBadge status={job.status} />
                   </div>
 
                   <div className="tnum mt-3 border-y border-line py-3 text-2xl font-extrabold break-hard">

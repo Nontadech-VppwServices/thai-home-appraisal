@@ -1,7 +1,9 @@
 "use client";
 
 import {
+  ChartColumn,
   FileText,
+  Database,
   Home,
   Landmark,
   LockKeyhole,
@@ -25,12 +27,14 @@ type NavLink = { href: string; label: string; icon: IconType };
 const menuIcons: Record<MenuKey, IconType> = {
   jobs: Home,
   newJob: FileText,
+  insights: ChartColumn,
   permissions: SlidersHorizontal,
   security: LockKeyhole,
   intake: Landmark,
   workflow: FileText,
   property: Home,
   photos: TableProperties,
+  references: Database,
   valuation: Landmark,
   report: ShieldCheck,
   review: ShieldCheck,
