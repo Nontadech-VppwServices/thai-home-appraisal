@@ -2,7 +2,6 @@
 
 import { Printer, Save, Trash2 } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChangeEvent, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
@@ -17,9 +16,32 @@ import {
   type ValuationMethod,
 } from "@/domain/appraisal";
 import { getJob, removeJob, saveDraft, saveJob, subscribeToJobs } from "@/infrastructure/storage/appraisalStore";
-import { Badge, Button, Field, FormSection, Toast } from "./ui";
+import {
+  Badge,
+  Button,
+  EmptyState,
+  Field,
+  FormSection,
+  Input,
+  LinkButton,
+  Notice,
+  PageHeader,
+  Panel,
+  PanelBody,
+  PanelHead,
+  PhotoTile,
+  PhotoUploader,
+  PriceSummary,
+  Select,
+  StatCard,
+  Stepper,
+  Textarea,
+  Toast,
+} from "./ui";
 
 type Section = "workflow" | "property" | "photos" | "valuation";
+
+const MAX_PHOTOS = 12;
 
 const steps: { section: Section | "report"; label: string }[] = [
   { section: "workflow", label: "ข้อมูลงาน" },
@@ -89,90 +111,106 @@ export function AppraisalWorkspace({ jobId, section }: { jobId: string; section:
 
   if (!job) {
     return (
-      <section className="empty-state">
-        <div>
-          <h1>ไม่พบงานประเมินนี้</h1>
-          <p className="intro">งานอาจถูกล้างจากเบราว์เซอร์เครื่องนี้แล้ว</p>
-          <div className="action-row action-center">
-            <Link className="btn btn-primary" href="/jobs/new">สร้างงานใหม่</Link>
-          </div>
-        </div>
-      </section>
+      <EmptyState
+        action={
+          <LinkButton href="/jobs/new" variant="primary">
+            สร้างงานใหม่
+          </LinkButton>
+        }
+        description="งานอาจถูกล้างจากเบราว์เซอร์เครื่องนี้แล้ว"
+        title="ไม่พบงานประเมินนี้"
+      />
     );
   }
 
   const valuation = calculateValuation(job.property, job.valuation);
+  const saved = job.status === "saved";
 
   return (
     <>
-      <header className="page-head">
-        <div>
-          <div className="eyebrow">{job.workflow.caseId || "Home appraisal / draft"}</div>
-          <h1>{pageTitle(section)}</h1>
-          <p className="intro">{pageIntro(section)}</p>
-        </div>
-        <div className="actions no-print">
-          <Button onClick={startNewJob}><Trash2 size={15} />เริ่มงานใหม่</Button>
-          <Link className="btn btn-primary" href={`/jobs/${job.id}/report`}><Printer size={15} />พิมพ์รายงาน</Link>
-          <Button onClick={handleSave} variant="dark"><Save size={15} />บันทึกงาน</Button>
-        </div>
-      </header>
+      <PageHeader
+        actions={
+          <>
+            <Button className="w-full sm:w-auto" onClick={handleSave} variant="primary">
+              <Save size={15} />
+              บันทึกงาน
+            </Button>
+            {/* บนมือถือวางสองปุ่มรองคู่กันเพื่อไม่ให้ header ยาวเกินไป */}
+            <div className="grid grid-cols-2 gap-2 sm:contents">
+              <LinkButton href={`/jobs/${job.id}/report`}>
+                <Printer size={15} />
+                พิมพ์รายงาน
+              </LinkButton>
+              <Button onClick={startNewJob} variant="ghost">
+                <Trash2 size={15} />
+                เริ่มงานใหม่
+              </Button>
+            </div>
+          </>
+        }
+        description={pageIntro(section)}
+        eyebrow={job.workflow.caseId || "งานแบบร่าง"}
+        title={pageTitle(section)}
+      />
 
-      <nav className="step-strip no-print" aria-label="ขั้นตอนงานประเมิน">
-        {steps.map((step) => (
-          <Link className={step.section === section ? "active" : ""} href={`/jobs/${job.id}/${step.section}`} key={step.section}>
-            {step.label}
-          </Link>
-        ))}
-      </nav>
+      <Stepper
+        currentIndex={steps.findIndex((step) => step.section === section)}
+        steps={steps.map((step) => ({ href: `/jobs/${job.id}/${step.section}`, label: step.label }))}
+      />
 
-      <section className="stats" aria-label="สรุปงาน">
-        <div className="panel stat"><div className="stat-label">สถานะงาน</div><div className="stat-value">{job.status === "saved" ? "บันทึกแล้ว" : "แบบร่าง"}</div></div>
-        <div className="panel stat"><div className="stat-label">รูปหลักฐาน</div><div className="stat-value">{job.photos.length} <small>รูป</small></div></div>
-        <div className="panel stat"><div className="stat-label">พื้นที่ใช้สอย</div><div className="stat-value">{formatNumber(job.property.usableArea)} <small>ตร.ม.</small></div></div>
-        <div className="panel stat"><div className="stat-label">ราคาประเมิน</div><div className="stat-value">{valuation.price > 0 ? `${formatNumber(valuation.price)} ฿` : "ยังไม่ระบุ"}</div></div>
+      <section aria-label="สรุปงาน" className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <StatCard label="สถานะงาน" value={saved ? "บันทึกแล้ว" : "แบบร่าง"} />
+        <StatCard label="รูปหลักฐาน" unit="รูป" value={String(job.photos.length)} />
+        <StatCard label="พื้นที่ใช้สอย" unit="ตร.ม." value={formatNumber(job.property.usableArea)} />
+        <StatCard
+          highlight
+          label="ราคาประเมิน"
+          value={valuation.price > 0 ? `${formatNumber(valuation.price)} ฿` : "ยังไม่ระบุ"}
+        />
       </section>
 
-      <div className="workspace">
-        <section className="panel">
-          <div className="panel-head">
-            <div>
-              <div className="section-title">แบบฟอร์มงานประเมิน</div>
-              <h2>{pageTitle(section)}</h2>
-            </div>
-            <Badge tone={job.status === "saved" ? "success" : "neutral"}>{saveState}</Badge>
-          </div>
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_21rem]">
+        <Panel>
+          <PanelHead
+            aside={<Badge tone={saved ? "success" : "neutral"}>{saveState}</Badge>}
+            title={pageTitle(section)}
+          />
           {section === "workflow" ? <WorkflowSection job={job} setJob={setJob} /> : null}
           {section === "property" ? <PropertySection job={job} setJob={setJob} /> : null}
           {section === "photos" ? <PhotosSection job={job} setJob={setJob} showToast={showToast} /> : null}
           {section === "valuation" ? <ValuationSection job={job} setJob={setJob} /> : null}
-        </section>
+        </Panel>
 
-        <aside className="sticky-side">
-          <section className="panel price-panel">
-            <div className="panel-body">
-              <div className="section-title">REQ-VALUATION-002</div>
-              <h2>สรุปราคา</h2>
-              <p className="intro">แสดงผลและที่มาของราคาจากวิธีประเมินที่เลือก</p>
-              <div className="price">{formatMoney(valuation.price)}</div>
-              <div className="price-sub">{valuation.price > 0 ? valuation.basis : "กรุณากรอกข้อมูลราคา"}</div>
-            </div>
-          </section>
+        <aside className="grid gap-4 xl:sticky xl:top-6">
+          <PriceSummary
+            basis={valuation.price > 0 ? valuation.basis : "กรุณากรอกข้อมูลราคา"}
+            price={formatMoney(valuation.price)}
+          />
 
-          <section className="panel">
-            <div className="panel-body checklist">
-              <h3>ก่อนส่งให้ผู้ตรวจสอบ</h3>
-              {checklistItems.map((item, index) => (
-                <label className="check" key={item}>
-                  <input checked={job.checks[index] ?? false} type="checkbox" onChange={(event) => updateCheck(job, setJob, index, event.target.checked)} />
-                  <span>{item}</span>
-                </label>
-              ))}
-              <div className="notice">Prototype นี้บันทึกข้อมูลไว้ในเบราว์เซอร์เครื่องนี้เท่านั้น ยังไม่มีการส่งข้อมูลจริงไปธนาคาร</div>
-            </div>
-          </section>
+          <Panel>
+            <PanelBody className="grid gap-4">
+              <h3 className="text-base font-bold">ก่อนส่งให้ผู้ตรวจสอบ</h3>
+              <div className="grid gap-3">
+                {checklistItems.map((item, index) => (
+                  <label className="flex cursor-pointer items-start gap-3 text-sm leading-relaxed text-ink-soft" key={item}>
+                    <input
+                      checked={job.checks[index] ?? false}
+                      className="mt-0.5 size-4.5 shrink-0 accent-accent"
+                      onChange={(event) => updateCheck(job, setJob, index, event.target.checked)}
+                      type="checkbox"
+                    />
+                    <span>{item}</span>
+                  </label>
+                ))}
+              </div>
+              <Notice>
+                Prototype นี้บันทึกข้อมูลไว้ในเบราว์เซอร์เครื่องนี้เท่านั้น ยังไม่มีการส่งข้อมูลจริงไปธนาคาร
+              </Notice>
+            </PanelBody>
+          </Panel>
         </aside>
       </div>
+
       <Toast message={toast} />
     </>
   );
@@ -184,22 +222,51 @@ function emptyJob(): AppraisalJob | null {
 
 function WorkflowSection({ job, setJob }: SectionProps) {
   return (
-    <FormSection eyebrow="REQ-WORKFLOW-001 / REQ-WORKFLOW-002" title="ข้อมูลที่ใช้ระบุงาน">
-      <div className="grid">
-        <Field label="เลขที่งาน">
-          <input value={job.workflow.caseId} onChange={(event) => setJob({ ...job, status: "draft", workflow: { ...job.workflow, caseId: event.target.value } })} placeholder="เช่น APP-2026-0001" />
+    <FormSection description="ข้อมูลที่ใช้ระบุงานในรายการและบนหัวรายงาน" title="ข้อมูลที่ใช้ระบุงาน">
+      <div className="grid gap-4 md:grid-cols-2">
+        <Field htmlFor="wf-caseId" label="เลขที่งาน">
+          <Input
+            id="wf-caseId"
+            onChange={(event) =>
+              setJob({ ...job, status: "draft", workflow: { ...job.workflow, caseId: event.target.value } })
+            }
+            placeholder="เช่น APP-2026-0001"
+            value={job.workflow.caseId}
+          />
         </Field>
-        <Field label="วันที่ลงพื้นที่">
-          <input type="date" value={job.workflow.visitDate} onChange={(event) => setJob({ ...job, status: "draft", workflow: { ...job.workflow, visitDate: event.target.value } })} />
+        <Field htmlFor="wf-visitDate" label="วันที่ลงพื้นที่">
+          <Input
+            id="wf-visitDate"
+            onChange={(event) =>
+              setJob({ ...job, status: "draft", workflow: { ...job.workflow, visitDate: event.target.value } })
+            }
+            type="date"
+            value={job.workflow.visitDate}
+          />
         </Field>
-        <Field label="ชื่อผู้ว่าจ้าง">
-          <input value={job.workflow.clientName} onChange={(event) => setJob({ ...job, status: "draft", workflow: { ...job.workflow, clientName: event.target.value } })} placeholder="ชื่อบุคคลหรือองค์กร" />
+        <Field htmlFor="wf-clientName" label="ชื่อผู้ว่าจ้าง">
+          <Input
+            id="wf-clientName"
+            onChange={(event) =>
+              setJob({ ...job, status: "draft", workflow: { ...job.workflow, clientName: event.target.value } })
+            }
+            placeholder="ชื่อบุคคลหรือองค์กร"
+            value={job.workflow.clientName}
+          />
         </Field>
-        <Field label="ธนาคารปลายทาง">
-          <select value={job.workflow.bank} onChange={(event) => setJob({ ...job, status: "draft", workflow: { ...job.workflow, bank: event.target.value } })}>
+        <Field htmlFor="wf-bank" label="ธนาคารปลายทาง">
+          <Select
+            id="wf-bank"
+            onChange={(event) =>
+              setJob({ ...job, status: "draft", workflow: { ...job.workflow, bank: event.target.value } })
+            }
+            value={job.workflow.bank}
+          >
             <option value="">เลือกธนาคาร</option>
-            {bankOptions.map((bank) => <option key={bank}>{bank}</option>)}
-          </select>
+            {bankOptions.map((bank) => (
+              <option key={bank}>{bank}</option>
+            ))}
+          </Select>
         </Field>
       </div>
     </FormSection>
@@ -208,22 +275,129 @@ function WorkflowSection({ job, setJob }: SectionProps) {
 
 function PropertySection({ job, setJob }: SectionProps) {
   return (
-    <FormSection eyebrow="REQ-PROPERTY-001 / REQ-PROPERTY-002" title="ข้อมูลบ้านและที่ตั้ง">
-      <div className="grid">
-        <div className="full"><Field label="ที่อยู่ทรัพย์สิน">
-          <textarea value={job.property.address} onChange={(event) => updateProperty(job, setJob, "address", event.target.value)} placeholder="บ้านเลขที่ ซอย ถนน ตำบล/แขวง อำเภอ/เขต จังหวัด รหัสไปรษณีย์" />
-        </Field></div>
-        <Field label="ละติจูด"><input value={job.property.latitude} onChange={(event) => updateProperty(job, setJob, "latitude", event.target.value)} placeholder="เช่น 13.7563" /></Field>
-        <Field label="ลองจิจูด"><input value={job.property.longitude} onChange={(event) => updateProperty(job, setJob, "longitude", event.target.value)} placeholder="เช่น 100.5018" /></Field>
-        <Field label="ประเภททรัพย์"><select value={job.property.propertyType} onChange={(event) => updateProperty(job, setJob, "propertyType", event.target.value)}>{propertyTypeOptions.map((item) => <option key={item}>{item}</option>)}</select></Field>
-        <Field label="สภาพบ้าน"><select value={job.property.condition} onChange={(event) => updateProperty(job, setJob, "condition", event.target.value)}>{conditionOptions.map((item) => <option key={item}>{item}</option>)}</select></Field>
-        <Field label="เนื้อที่ดิน" help="ตร.วา"><input min="0" step="0.01" type="number" value={fieldValue(job.property.landArea)} onChange={(event) => updateProperty(job, setJob, "landArea", numberValue(event))} /></Field>
-        <Field label="พื้นที่ใช้สอย" help="ตร.ม."><input min="0" step="0.01" type="number" value={fieldValue(job.property.usableArea)} onChange={(event) => updateProperty(job, setJob, "usableArea", numberValue(event))} /></Field>
-        <Field label="จำนวนชั้น"><input min="1" step="1" type="number" value={fieldValue(job.property.floors)} onChange={(event) => updateProperty(job, setJob, "floors", numberValue(event))} /></Field>
-        <Field label="ปีที่สร้าง"><input min="1800" max="2600" type="number" value={fieldValue(job.property.buildYear)} onChange={(event) => updateProperty(job, setJob, "buildYear", numberValue(event))} placeholder="พ.ศ." /></Field>
-        <Field label="จำนวนห้องนอน"><input min="0" step="1" type="number" value={fieldValue(job.property.bedrooms)} onChange={(event) => updateProperty(job, setJob, "bedrooms", numberValue(event))} /></Field>
-        <Field label="จำนวนห้องน้ำ"><input min="0" step="1" type="number" value={fieldValue(job.property.bathrooms)} onChange={(event) => updateProperty(job, setJob, "bathrooms", numberValue(event))} /></Field>
-        <div className="full"><Field label="รายละเอียดเพิ่มเติม"><textarea value={job.property.description} onChange={(event) => updateProperty(job, setJob, "description", event.target.value)} placeholder="วัสดุ สภาพแวดล้อม ทางเข้าออก สิ่งอำนวยความสะดวก หรือข้อสังเกต" /></Field></div>
+    <FormSection description="ที่ตั้ง ลักษณะบ้าน และพื้นที่ที่ใช้อ้างอิงในรายงานประเมิน" title="ข้อมูลบ้านและที่ตั้ง">
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="md:col-span-2">
+          <Field htmlFor="pr-address" label="ที่อยู่ทรัพย์สิน">
+            <Textarea
+              id="pr-address"
+              onChange={(event) => updateProperty(job, setJob, "address", event.target.value)}
+              placeholder="บ้านเลขที่ ซอย ถนน ตำบล/แขวง อำเภอ/เขต จังหวัด รหัสไปรษณีย์"
+              value={job.property.address}
+            />
+          </Field>
+        </div>
+
+        <Field htmlFor="pr-lat" label="ละติจูด">
+          <Input
+            id="pr-lat"
+            onChange={(event) => updateProperty(job, setJob, "latitude", event.target.value)}
+            placeholder="เช่น 13.7563"
+            value={job.property.latitude}
+          />
+        </Field>
+        <Field htmlFor="pr-lng" label="ลองจิจูด">
+          <Input
+            id="pr-lng"
+            onChange={(event) => updateProperty(job, setJob, "longitude", event.target.value)}
+            placeholder="เช่น 100.5018"
+            value={job.property.longitude}
+          />
+        </Field>
+        <Field htmlFor="pr-type" label="ประเภททรัพย์">
+          <Select
+            id="pr-type"
+            onChange={(event) => updateProperty(job, setJob, "propertyType", event.target.value)}
+            value={job.property.propertyType}
+          >
+            {propertyTypeOptions.map((item) => (
+              <option key={item}>{item}</option>
+            ))}
+          </Select>
+        </Field>
+        <Field htmlFor="pr-condition" label="สภาพบ้าน">
+          <Select
+            id="pr-condition"
+            onChange={(event) => updateProperty(job, setJob, "condition", event.target.value)}
+            value={job.property.condition}
+          >
+            {conditionOptions.map((item) => (
+              <option key={item}>{item}</option>
+            ))}
+          </Select>
+        </Field>
+        <Field help="ตร.วา" htmlFor="pr-landArea" label="เนื้อที่ดิน">
+          <Input
+            id="pr-landArea"
+            min="0"
+            onChange={(event) => updateProperty(job, setJob, "landArea", numberValue(event))}
+            step="0.01"
+            type="number"
+            value={fieldValue(job.property.landArea)}
+          />
+        </Field>
+        <Field help="ตร.ม." htmlFor="pr-usableArea" label="พื้นที่ใช้สอย">
+          <Input
+            id="pr-usableArea"
+            min="0"
+            onChange={(event) => updateProperty(job, setJob, "usableArea", numberValue(event))}
+            step="0.01"
+            type="number"
+            value={fieldValue(job.property.usableArea)}
+          />
+        </Field>
+        <Field htmlFor="pr-floors" label="จำนวนชั้น">
+          <Input
+            id="pr-floors"
+            min="1"
+            onChange={(event) => updateProperty(job, setJob, "floors", numberValue(event))}
+            step="1"
+            type="number"
+            value={fieldValue(job.property.floors)}
+          />
+        </Field>
+        <Field htmlFor="pr-buildYear" label="ปีที่สร้าง">
+          <Input
+            id="pr-buildYear"
+            max="2600"
+            min="1800"
+            onChange={(event) => updateProperty(job, setJob, "buildYear", numberValue(event))}
+            placeholder="พ.ศ."
+            type="number"
+            value={fieldValue(job.property.buildYear)}
+          />
+        </Field>
+        <Field htmlFor="pr-bedrooms" label="จำนวนห้องนอน">
+          <Input
+            id="pr-bedrooms"
+            min="0"
+            onChange={(event) => updateProperty(job, setJob, "bedrooms", numberValue(event))}
+            step="1"
+            type="number"
+            value={fieldValue(job.property.bedrooms)}
+          />
+        </Field>
+        <Field htmlFor="pr-bathrooms" label="จำนวนห้องน้ำ">
+          <Input
+            id="pr-bathrooms"
+            min="0"
+            onChange={(event) => updateProperty(job, setJob, "bathrooms", numberValue(event))}
+            step="1"
+            type="number"
+            value={fieldValue(job.property.bathrooms)}
+          />
+        </Field>
+
+        <div className="md:col-span-2">
+          <Field htmlFor="pr-description" label="รายละเอียดเพิ่มเติม">
+            <Textarea
+              id="pr-description"
+              onChange={(event) => updateProperty(job, setJob, "description", event.target.value)}
+              placeholder="วัสดุ สภาพแวดล้อม ทางเข้าออก สิ่งอำนวยความสะดวก หรือข้อสังเกต"
+              value={job.property.description}
+            />
+          </Field>
+        </div>
       </div>
     </FormSection>
   );
@@ -232,17 +406,24 @@ function PropertySection({ job, setJob }: SectionProps) {
 function PhotosSection({ job, setJob, showToast }: SectionProps & { showToast: (message: string) => void }) {
   function addPhotos(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
-    const remaining = 12 - job.photos.length;
-    if (files.length > remaining) showToast("เพิ่มรูปได้สูงสุด 12 รูปต่อหนึ่งงานใน prototype นี้");
+    const remaining = MAX_PHOTOS - job.photos.length;
+    if (files.length > remaining) showToast(`เพิ่มรูปได้สูงสุด ${MAX_PHOTOS} รูปต่อหนึ่งงานใน prototype นี้`);
 
     files.slice(0, remaining).forEach((file) => {
       const reader = new FileReader();
       reader.addEventListener("load", () => {
-        setJob((current) => current ? {
-          ...current,
-          status: "draft",
-          photos: [...current.photos, { id: `${Date.now()}-${file.name}`, name: file.name, dataUrl: String(reader.result) }],
-        } : current);
+        setJob((current) =>
+          current
+            ? {
+                ...current,
+                status: "draft",
+                photos: [
+                  ...current.photos,
+                  { id: `${Date.now()}-${file.name}`, name: file.name, dataUrl: String(reader.result) },
+                ],
+              }
+            : current,
+        );
       });
       reader.readAsDataURL(file);
     });
@@ -250,21 +431,41 @@ function PhotosSection({ job, setJob, showToast }: SectionProps & { showToast: (
   }
 
   return (
-    <FormSection eyebrow="REQ-PHOTO-001 / REQ-PHOTO-002" title="รูปถ่ายและหลักฐาน">
-      <label className="photo-drop" htmlFor="photoInput">
-        <span><strong>แตะเพื่อเพิ่มรูปถ่าย</strong>รูปด้านหน้า บ้านเลขที่ ภายในบ้าน ถนน และสภาพแวดล้อม</span>
-      </label>
-      <input className="photo-input" id="photoInput" type="file" accept="image/*" multiple onChange={addPhotos} />
-      <div className="notice mt-md">รูปภาพใน MVP นี้เก็บเป็นข้อมูลในเบราว์เซอร์เครื่องนี้ หากรูปมีขนาดใหญ่มากอาจเกินพื้นที่ localStorage</div>
-      {job.photos.length === 0 ? <div className="empty-state mt-md">ยังไม่มีรูปหลักฐาน</div> : null}
-      <div className="photos">
-        {job.photos.map((photo) => (
-          <div className="photo" key={photo.id}>
-            <Image alt={photo.name} height={320} src={photo.dataUrl} unoptimized width={320} />
-            <Button aria-label={`ลบ ${photo.name}`} onClick={() => setJob({ ...job, status: "draft", photos: job.photos.filter((item) => item.id !== photo.id) })} variant="danger"><Trash2 size={15} /></Button>
-          </div>
-        ))}
-      </div>
+    <FormSection description="เพิ่มรูปจากอุปกรณ์ ดูตัวอย่าง และลบรูปที่ไม่ต้องการก่อนพิมพ์รายงาน" title="รูปถ่ายและหลักฐาน">
+      <PhotoUploader count={job.photos.length} inputId="photoInput" max={MAX_PHOTOS} onAdd={addPhotos}>
+        {job.photos.length === 0 ? (
+          <EmptyState
+            description="รูปภาพใน MVP นี้เก็บไว้ในเบราว์เซอร์เครื่องนี้ หากรูปมีขนาดใหญ่มากอาจเกินพื้นที่ localStorage"
+            title="ยังไม่มีรูปหลักฐาน"
+          />
+        ) : (
+          <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+            {job.photos.map((photo) => (
+              <li key={photo.id}>
+                <PhotoTile
+                  name={photo.name}
+                  onRemove={() =>
+                    setJob({
+                      ...job,
+                      status: "draft",
+                      photos: job.photos.filter((item) => item.id !== photo.id),
+                    })
+                  }
+                >
+                  <Image
+                    alt={photo.name}
+                    className="size-full object-cover"
+                    height={320}
+                    src={photo.dataUrl}
+                    unoptimized
+                    width={320}
+                  />
+                </PhotoTile>
+              </li>
+            ))}
+          </ul>
+        )}
+      </PhotoUploader>
     </FormSection>
   );
 }
@@ -272,20 +473,63 @@ function PhotosSection({ job, setJob, showToast }: SectionProps & { showToast: (
 function ValuationSection({ job, setJob }: SectionProps) {
   const result = calculateValuation(job.property, job.valuation);
   return (
-    <FormSection eyebrow="REQ-VALUATION-001 / REQ-VALUATION-002" title="วิธีประเมินราคา">
-      <div className="grid">
-        <Field label="วิธีประเมิน">
-          <select value={job.valuation.method} onChange={(event) => updateValuation(job, setJob, "method", event.target.value as ValuationMethod)}>
+    <FormSection description="เลือกวิธีประเมินและบันทึกที่มาของผลลัพธ์ให้ผู้ตรวจสอบเข้าใจได้" title="วิธีประเมินราคา">
+      <div className="grid gap-4 md:grid-cols-2">
+        <Field htmlFor="va-method" label="วิธีประเมิน">
+          <Select
+            id="va-method"
+            onChange={(event) => updateValuation(job, setJob, "method", event.target.value as ValuationMethod)}
+            value={job.valuation.method}
+          >
             <option value="manual">ผู้ประเมินกรอกเอง</option>
             <option value="area">พื้นที่ใช้สอยคูณราคาต่อตารางเมตร</option>
             <option value="compare">กรอกราคาจากทรัพย์เปรียบเทียบ</option>
-          </select>
+          </Select>
         </Field>
-        {job.valuation.method === "manual" ? <Field label="ราคาประเมิน" help="บาท"><input min="0" step="1000" type="number" value={fieldValue(job.valuation.manualPrice)} onChange={(event) => updateValuation(job, setJob, "manualPrice", numberValue(event))} /></Field> : null}
-        {job.valuation.method === "area" ? <Field label="ราคาต่อตารางเมตร" help="บาท"><input min="0" step="100" type="number" value={fieldValue(job.valuation.rate)} onChange={(event) => updateValuation(job, setJob, "rate", numberValue(event))} /></Field> : null}
-        {job.valuation.method === "compare" ? <Field label="ราคาจากทรัพย์เปรียบเทียบ" help="บาท"><input min="0" step="1000" type="number" value={fieldValue(job.valuation.comparePrice)} onChange={(event) => updateValuation(job, setJob, "comparePrice", numberValue(event))} /></Field> : null}
+
+        {job.valuation.method === "manual" ? (
+          <Field help="บาท" htmlFor="va-manual" label="ราคาประเมิน">
+            <Input
+              id="va-manual"
+              min="0"
+              onChange={(event) => updateValuation(job, setJob, "manualPrice", numberValue(event))}
+              step="1000"
+              type="number"
+              value={fieldValue(job.valuation.manualPrice)}
+            />
+          </Field>
+        ) : null}
+        {job.valuation.method === "area" ? (
+          <Field help="บาท" htmlFor="va-rate" label="ราคาต่อตารางเมตร">
+            <Input
+              id="va-rate"
+              min="0"
+              onChange={(event) => updateValuation(job, setJob, "rate", numberValue(event))}
+              step="100"
+              type="number"
+              value={fieldValue(job.valuation.rate)}
+            />
+          </Field>
+        ) : null}
+        {job.valuation.method === "compare" ? (
+          <Field help="บาท" htmlFor="va-compare" label="ราคาจากทรัพย์เปรียบเทียบ">
+            <Input
+              id="va-compare"
+              min="0"
+              onChange={(event) => updateValuation(job, setJob, "comparePrice", numberValue(event))}
+              step="1000"
+              type="number"
+              value={fieldValue(job.valuation.comparePrice)}
+            />
+          </Field>
+        ) : null}
       </div>
-      <div className="success-note mt-lg">ผลประเมิน: {formatMoney(result.price)} · {result.price > 0 ? result.basis : "กรุณากรอกข้อมูลราคา"}</div>
+
+      <Notice tone="success">
+        ผลประเมิน: <strong className="tnum font-extrabold">{formatMoney(result.price)}</strong>
+        {" · "}
+        {result.price > 0 ? result.basis : "กรุณากรอกข้อมูลราคา"}
+      </Notice>
     </FormSection>
   );
 }

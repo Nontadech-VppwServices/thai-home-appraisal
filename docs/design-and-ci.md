@@ -27,6 +27,29 @@
 
 ห้ามใส่ค่าสี spacing หรือ font size แบบสุ่มใน component หากมี token หรือ utility class ที่ตรงความหมายอยู่แล้ว หลีกเลี่ยง inline style สำหรับ layout ยกเว้นมีเหตุผลเฉพาะจุดที่ตรวจสอบได้
 
+### การนำไปใช้จริง
+
+Token ทั้งหมดอยู่ใน `src/app/globals.css` ไฟล์เดียว โดยแยกเป็นสองชั้น:
+
+1. CSS variable ดิบใน `:root` ซึ่งสลับค่าตาม `prefers-color-scheme`
+2. บล็อก `@theme inline` ของ Tailwind v4 ที่ map ค่าเหล่านั้นเป็น utility
+
+ผลคือ `bg-surface`, `text-ink`, `border-line` ใช้ได้ทั้งโหมดสว่างและมืดโดยไม่ต้องเขียน `dark:` ซ้ำทุกจุด และแก้ธีมได้จาก `:root` ที่เดียว
+
+- ฟอนต์โหลดผ่าน `next/font/google` (`Noto_Sans_Thai`, subset `thai` + `latin`) ใน `src/app/layout.tsx` แล้วส่งเข้า token ด้วยตัวแปร `--font-thai` ห้ามประกาศชื่อฟอนต์ใน CSS โดยไม่โหลดจริง
+- ตัวเลขราคาใช้ utility `tnum` (tabular-nums) แทนการโหลดฟอนต์ตัวเลขแยก
+- `report-sheet` ใช้สีขาว/ดำตายตัว ไม่ผูกกับ token ธีม เพราะเป็นเอกสารสำหรับพิมพ์
+- โหมดมืดทำงานตาม system preference อย่างเดียว ยังไม่มีปุ่มสลับธีมด้วยมือ
+
+Breakpoint ที่ใช้จริงเป็นค่า default ของ Tailwind:
+
+| ชื่อ | ความกว้าง | ใช้ทำอะไร |
+|---|---|---|
+| base | < 768px | ฟอร์มคอลัมน์เดียว, dashboard เป็น card, nav เป็น top bar + drawer |
+| `md` | ≥ 768px | ฟอร์มสองคอลัมน์, dashboard กลับเป็นตาราง |
+| `lg` | ≥ 1024px | เปลี่ยนจาก top bar + drawer เป็น sidebar ถาวรด้านซ้าย |
+| `xl` | ≥ 1280px | workspace แยกเป็นฟอร์ม + rail สรุปราคาแบบ sticky |
+
 ## Responsive layout
 
 ออกแบบแบบ mobile-first และทดสอบอย่างน้อย 3 ช่วง:
