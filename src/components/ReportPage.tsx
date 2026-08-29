@@ -7,11 +7,19 @@ import { canView } from "@/domain/access";
 import { calculateValuation, formatMoney, formatNumber, type AppraisalJob } from "@/domain/appraisal";
 import { sourceLabels, summarizePriceReferences, unitLabels, type PriceReferenceSnapshot } from "@/domain/priceReferences";
 import { getJob, getSelectedPriceReferences, subscribeToJobs } from "@/infrastructure/storage/appraisalStore";
-import { AccessBanner, Button, EmptyState, LinkButton, PageHeader, StatusBadge } from "./ui";
+import { AccessBanner, Button, EmptyState, LinkButton, PageHeader, StatusBadge, Stepper } from "./ui";
 import { useAccess } from "./useAccess";
 import { JobContext } from "./JobContext";
 
 const UNSET = "ยังไม่ระบุ";
+const appraisalSteps = [
+  { section: "workflow", label: "ข้อมูลงาน" },
+  { section: "property", label: "ทรัพย์สิน" },
+  { section: "photos", label: "รูปถ่าย" },
+  { section: "references", label: "ข้อมูลอ้างอิง" },
+  { section: "valuation", label: "ประเมินราคา" },
+  { section: "report", label: "รายงาน" },
+] as const;
 
 export function ReportPage({ jobId }: { jobId: string }) {
   const { permission } = useAccess();
@@ -57,6 +65,13 @@ export function ReportPage({ jobId }: { jobId: string }) {
           title="ตรวจรายงานก่อนพิมพ์"
         />
         <JobContext job={job} />
+        <Stepper
+          currentIndex={appraisalSteps.length - 1}
+          steps={appraisalSteps.map((step) => ({
+            href: `/jobs/${job.id}/${step.section}`,
+            label: step.label,
+          }))}
+        />
       </div>
 
       <article className="report-sheet rounded-shell border border-line p-6 shadow-panel md:p-10 print:border-0 print:shadow-none">

@@ -1,6 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { ChevronDown, EyeOff, Lock, Trash2 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
 import { statusLabels, type JobStatus } from "@/domain/appraisal";
 
 function classes(...items: Array<string | false | undefined>) {
@@ -363,14 +365,29 @@ export function Stepper({
   steps: { href: string; label: string }[];
   currentIndex: number;
 }) {
+  const trackRef = useRef<HTMLOListElement>(null);
+  const activeItemRef = useRef<HTMLLIElement>(null);
+
+  useLayoutEffect(() => {
+    const track = trackRef.current;
+    const activeItem = activeItemRef.current;
+    if (!track || !activeItem || track.scrollWidth <= track.clientWidth) return;
+
+    const centeredLeft = activeItem.offsetLeft - (track.clientWidth - activeItem.offsetWidth) / 2;
+    track.scrollTo({
+      left: Math.max(0, centeredLeft),
+      behavior: "auto",
+    });
+  }, [currentIndex]);
+
   return (
     <nav aria-label="ขั้นตอนงานประเมิน" className="mb-6 print:hidden">
-      <ol className="scroll-fade-x flex snap-x snap-mandatory gap-1 overflow-x-auto pb-1">
+      <ol className="scroll-fade-x flex snap-x snap-mandatory gap-1 overflow-x-auto pb-1" ref={trackRef}>
         {steps.map((step, index) => {
           const current = index === currentIndex;
           const done = index < currentIndex;
           return (
-            <li className="shrink-0 snap-start" key={step.href}>
+            <li className="shrink-0 snap-start" key={step.href} ref={current ? activeItemRef : undefined}>
               <Link
                 aria-current={current ? "step" : undefined}
                 className={classes(
