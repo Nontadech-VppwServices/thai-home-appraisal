@@ -465,6 +465,80 @@ export function teamStats(jobs: AppraisalJob[], range: DateRange, asOf: string):
 }
 
 /* --------------------------------------------------------------------------
+   ผลงานรายผู้ประเมิน — ตอบคำถาม "ใครถืองานอยู่เท่าไร และทำเสร็จเร็วแค่ไหน"
+-------------------------------------------------------------------------- */
+
+export type AssigneeStat = {
+  /** "" = ยังไม่ได้ระบุผู้ประเมิน */
+  assignee: string;
+  label: string;
+  /** งานที่อยู่ในขั้นตอนของทีม B ตอนนี้ ไม่ผูกกับช่วงที่เลือก */
+  openJobs: number;
+  /** ในจำนวน openJobs เลยกำหนดส่งแล้วกี่ใบ */
+  overdueJobs: number;
+  /** งานที่เข้าสถานะ ส่งธนาคารแล้ว ภายในช่วงที่เลือก */
+  submitted: number;
+  /** จำนวนช่วงงานของทีม B ที่จบในช่วงที่เลือก เป็นตัวหารของค่าเฉลี่ย */
+  handled: number;
+  averageHandlingDays: number;
+};
+
+export const unassignedLabel = "ยังไม่ระบุผู้ประเมิน";
+
+type AssigneeAccumulator = Omit<AssigneeStat, "averageHandlingDays"> & { days: number[] };
+
+/**
+ * สรุปภาระงานและความเร็วรายคนของทีม B (REQ-INSIGHT-007)
+ *
+ * `openJobs` นับเฉพาะงานที่อยู่ในขั้นตอนของทีม B ตอนนี้ งานที่ส่งต่อทีม C ไปแล้ว
+ * เป็นคิวของทีม C ไม่ใช่ภาระของผู้ประเมิน ถ้านับด้วยจะซ้ำกับแถวของทีม C
+ *
+ * `handled` ใช้เงื่อนไขเดียวกับ teamStats คือนับเฉพาะช่วงที่จบแล้ว
+ * ผลรวมของทุกคนจึงเท่ากับ handoffs ของทีม B เสมอ
+ * งานที่ถูกตีกลับนับสองช่วง เพราะเป็นเวลาที่ใช้ไปจริงสองครั้ง
+ */
+export function assigneeStats(jobs: AppraisalJob[], range: DateRange, asOf: string): AssigneeStat[] {
+  const rows = new Map<string, AssigneeAccumulator>();
+  const rowFor = (assignee: string) => {
+    const existing = rows.get(assignee);
+    if (existing) return existing;
+    const created: AssigneeAccumulator = {
+      assignee,
+      label: assignee === "" ? unassignedLabel : assignee,
+      openJobs: 0,
+      overdueJobs: 0,
+      submitted: 0,
+      handled: 0,
+      days: [],
+    };
+    rows.set(assignee, created);
+    return created;
+  };
+
+  for (const job of jobs) {
+    if (job.status !== "submitted" && ownerTeamOf(job.status) === "teamB") {
+      const row = rowFor(job.assignee);
+      row.openJobs += 1;
+      if (summariseJob(job, asOf).overdueDays > 0) row.overdueJobs += 1;
+    }
+
+    const submittedAt = submittedAtOf(job);
+    if (submittedAt !== null && inRange(submittedAt, range)) rowFor(job.assignee).submitted += 1;
+
+    for (const entry of stageEntries(job, asOf)) {
+      if (entry.team !== "teamB" || entry.open || !inRange(entry.end, range)) continue;
+      const row = rowFor(job.assignee);
+      row.handled += 1;
+      row.days.push(entry.days);
+    }
+  }
+
+  return [...rows.values()]
+    .map(({ days, ...row }) => ({ ...row, averageHandlingDays: round1(average(days)) }))
+    .sort((a, b) => b.openJobs - a.openJobs || b.submitted - a.submitted || a.label.localeCompare(b.label, "th"));
+}
+
+/* --------------------------------------------------------------------------
    แนวโน้มและอัตราส่วน
 -------------------------------------------------------------------------- */
 
@@ -583,6 +657,7 @@ export type DashboardReport = {
   bottleneck: StageStat | null;
   cycle: CycleTimeReport;
   teams: TeamStat[];
+  assignees: AssigneeStat[];
   trend: TrendPoint[];
   onTime: RateReport;
   rework: RateReport;
@@ -607,6 +682,7 @@ export function buildReport(jobs: AppraisalJob[], filter: ReportFilter, asOf: st
     bottleneck: measured.length === 0 ? null : measured.reduce((slowest, stage) => (stage.medianDays > slowest.medianDays ? stage : slowest)),
     cycle: cycleTimeReport(jobs, range),
     teams: teamStats(jobs, range, asOf),
+    assignees: assigneeStats(jobs, range, asOf),
     trend: trendSeries(jobs, range),
     onTime: onTimeRate(jobs, range),
     rework: reworkRate(jobs, range),

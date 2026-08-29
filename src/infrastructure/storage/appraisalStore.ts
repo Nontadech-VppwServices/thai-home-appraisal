@@ -10,6 +10,7 @@ import type { Team } from "@/domain/access";
 const STORAGE_KEY = "thaiHomeAppraisals:v1";
 const LEGACY_STORAGE_KEY = "thaiHomeAppraisal";
 const STORE_EVENT = "thai-home-appraisal-store-change";
+const DEMO_SEED_KEY = "thaiHomeDemoSeeded:v1";
 
 type StoredJobs = Record<string, AppraisalJob>;
 type StoredReferences = Record<string, PriceReferenceSnapshot>;
@@ -27,6 +28,21 @@ let cachedListState: StoredState | null = null;
 let cachedListValue: AppraisalJob[] = [];
 let cachedReferenceState: StoredState | null = null;
 let cachedReferenceValue: PriceReferenceSnapshot[] = [];
+
+/**
+ * จำว่าเคยโหลดข้อมูลตัวอย่างในเบราว์เซอร์นี้ไปแล้วหรือยัง (REQ-INSIGHT-006)
+ *
+ * ถ้าไม่จำ หน้ารายงานจะ seed ใหม่ทุกครั้งที่คลังงานว่าง ทำให้ปุ่มล้างข้อมูลตัวอย่าง
+ * ไม่มีผลจริง เก็บแยก key เพราะเป็นคนละเรื่องกับ schema ของงาน
+ */
+export function hasLoadedDemoBefore(): boolean {
+  if (typeof window === "undefined") return true;
+  return window.localStorage.getItem(DEMO_SEED_KEY) === "1";
+}
+
+export function rememberDemoLoaded(): void {
+  window.localStorage.setItem(DEMO_SEED_KEY, "1");
+}
 
 export function todayISO(): string {
   return new Date().toISOString().slice(0, 10);

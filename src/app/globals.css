@@ -203,6 +203,20 @@
 .report-sheet .report-line { border-color: #e5e7eb; }
 
 /* ---------------------------------------------------------------------------
+   Chart
+   สีเส้นและแท่งใส่ผ่าน class fill กับ stroke ของ Tailwind เพราะ var() ใช้ใน SVG
+   presentation attribute ไม่ได้ ที่นี่จึงคุมเฉพาะแกน เส้นตาราง และ cursor
+--------------------------------------------------------------------------- */
+
+.chart .recharts-cartesian-grid line { stroke: var(--line); }
+.chart .recharts-cartesian-axis-line,
+.chart .recharts-cartesian-axis-tick-line { stroke: var(--line-strong); }
+.chart .recharts-cartesian-axis-tick-value { fill: var(--muted); }
+.chart .recharts-rectangle.recharts-tooltip-cursor { fill: var(--surface-2); }
+.chart .recharts-curve.recharts-tooltip-cursor { stroke: var(--line-strong); }
+.chart .recharts-surface { overflow: visible; }
+
+/* ---------------------------------------------------------------------------
    Motion / Print
 --------------------------------------------------------------------------- */
 
