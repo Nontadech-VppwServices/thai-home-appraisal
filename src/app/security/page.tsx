@@ -1,5 +1,5 @@
-import { FuturePage } from "@/components/FuturePage";
+import { SecurityPage } from "@/components/SecurityPage";
 
 export default function Page() {
-  return <FuturePage route="security" />;
+  return <SecurityPage />;
 }

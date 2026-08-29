@@ -1,6 +1,6 @@
 "use client";
 
-import { Printer, Save, Trash2 } from "lucide-react";
+import { CheckCircle2, Circle, Printer, Save, Send, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -14,12 +14,13 @@ import {
   formatNumber,
   propertyTypeOptions,
   statusLabels,
+  submissionReadiness,
   type AppraisalJob,
   type ValuationMethod,
 } from "@/domain/appraisal";
 import { sourceLabels, summarizePriceReferences, unitLabels, type PriceReferenceSnapshot } from "@/domain/priceReferences";
 import { canEdit, canView, ownerTeamLabel, type MenuKey } from "@/domain/access";
-import { getJob, getSelectedPriceReferences, removeJob, saveJob, subscribeToJobs } from "@/infrastructure/storage/appraisalStore";
+import { getJob, getSelectedPriceReferences, removeJob, saveJob, subscribeToJobs, transitionStoredJob } from "@/infrastructure/storage/appraisalStore";
 import {
   AccessBanner,
   Badge,
@@ -44,6 +45,7 @@ import {
   Toast,
 } from "./ui";
 import { useAccess } from "./useAccess";
+import { JobContext } from "./JobContext";
 
 type Section = "workflow" | "property" | "photos" | "valuation";
 
@@ -60,11 +62,13 @@ const steps: { section: Section | "references" | "report"; label: string }[] = [
 
 export function AppraisalWorkspace({ jobId, section }: { jobId: string; section: Section }) {
   const router = useRouter();
-  const { permission } = useAccess();
+  const { permission, team } = useAccess();
   const level = permission(section as MenuKey);
-  const readOnly = !canEdit(level);
+  const permissionReadOnly = !canEdit(level);
   const storedJob = useSyncExternalStore(subscribeToJobs, () => getJob(jobId), emptyJob);
   const [job, setJob] = useState<AppraisalJob | null>(storedJob);
+  const editableStatus = job?.status === "assigned" || job?.status === "changesRequested";
+  const readOnly = permissionReadOnly || !editableStatus;
   const [saveState, setSaveState] = useState("พร้อมแก้ไข");
   const [toast, setToast] = useState("");
   const skipFirstSave = useRef(true);
@@ -118,6 +122,23 @@ export function AppraisalWorkspace({ jobId, section }: { jobId: string; section:
     router.push("/jobs/new");
   }
 
+  function sendForReview() {
+    if (!job || !team || readOnly) return;
+    const readiness = submissionReadiness(job);
+    if (!readiness.ready) {
+      showToast("กรุณากรอกข้อมูลทรัพย์ รูปหลักฐาน และราคาให้ครบก่อนส่งตรวจ");
+      return;
+    }
+    try {
+      saveJob(job);
+      const next = transitionStoredJob(job.id, "readyToSubmit", team, "ข้อมูลพร้อม ส่งให้ทีม C ตรวจสอบ");
+      setJob(next);
+      showToast("ส่งงานให้ทีม C ตรวจสอบแล้ว");
+    } catch (caught) {
+      showToast(caught instanceof Error ? caught.message : "ส่งงานไม่สำเร็จ");
+    }
+  }
+
   if (!job) {
     return (
       <EmptyState
@@ -134,6 +155,7 @@ export function AppraisalWorkspace({ jobId, section }: { jobId: string; section:
 
   const valuation = calculateValuation(job.property, job.valuation);
   const selectedReferenceSnapshots = getSelectedPriceReferences(job);
+  const readiness = submissionReadiness(job);
 
   return (
     <>
@@ -169,9 +191,15 @@ export function AppraisalWorkspace({ jobId, section }: { jobId: string; section:
         title={pageTitle(section)}
       />
 
-      {readOnly ? (
+      {permissionReadOnly ? (
         <AccessBanner level={canView(level) ? "read" : "none"} ownerLabel={ownerTeamLabel(section as MenuKey)} />
       ) : null}
+
+      {!permissionReadOnly && !editableStatus ? (
+        <div className="mb-6"><Notice tone={job.status === "submitted" ? "success" : "warning"}>งานอยู่ในสถานะ {statusLabels[job.status]} จึงล็อกการแก้ไขในหน้าประเมิน</Notice></div>
+      ) : null}
+
+      <JobContext job={job} />
 
       <Stepper
         currentIndex={steps.findIndex((step) => step.section === section)}
@@ -245,6 +273,17 @@ export function AppraisalWorkspace({ jobId, section }: { jobId: string; section:
               ) : (
                 <Notice tone="success">เลือกข้อมูลอ้างอิงแล้ว {selectedReferenceSnapshots.length} รายการ</Notice>
               )}
+              <div className="grid gap-2 border-t border-line pt-4">
+                {readiness.items.map((item) => (
+                  <div className="flex items-center gap-2 text-xs font-semibold" key={item.key}>
+                    {item.complete ? <CheckCircle2 className="text-success" size={15} /> : <Circle className="text-warning" size={15} />}
+                    <span className={item.complete ? "text-ink-soft" : "text-muted"}>{item.label}</span>
+                  </div>
+                ))}
+              </div>
+              {editableStatus && canEdit(permission("valuation")) ? (
+                <Button disabled={!readiness.ready} onClick={sendForReview} variant="primary"><Send size={15} />ส่งให้ทีม C ตรวจ</Button>
+              ) : null}
             </PanelBody>
           </Panel>
         </aside>

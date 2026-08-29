@@ -89,8 +89,8 @@ export function Dashboard() {
                         <StatusBadge status={job.status} />
                       </td>
                       <td className="px-4 py-3.5 text-right">
-                        <LinkButton href={`/jobs/${job.id}/workflow`} size="sm">
-                          แก้ไข
+                        <LinkButton href={jobRoute(job)} size="sm">
+                          เปิดงาน
                         </LinkButton>
                       </td>
                     </tr>
@@ -125,8 +125,8 @@ export function Dashboard() {
                     <Meta label="ธนาคาร" value={job.workflow.bank} />
                   </dl>
 
-                  <LinkButton className="mt-4 w-full" href={`/jobs/${job.id}/workflow`} variant="primary">
-                    แก้ไขงานนี้
+                  <LinkButton className="mt-4 w-full" href={jobRoute(job)} variant="primary">
+                    เปิดงานนี้
                   </LinkButton>
                 </Panel>
               </li>
@@ -149,4 +149,11 @@ function Meta({ label, value }: { label: string; value: string }) {
 
 function emptyJobs(): AppraisalJob[] {
   return NO_JOBS;
+}
+
+function jobRoute(job: AppraisalJob): string {
+  if (job.status === "intake") return `/jobs/${job.id}/intake`;
+  if (job.status === "readyToSubmit") return `/jobs/${job.id}/review`;
+  if (job.status === "submitted") return `/jobs/${job.id}/handoff`;
+  return `/jobs/${job.id}/workflow`;
 }

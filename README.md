@@ -14,7 +14,8 @@ Prototype เว็บแอปสำหรับบันทึกงานป�
 - ค้นและเก็บ snapshot ข้อมูลอ้างอิงจากภาครัฐ ราคาประกาศตลาด และงานประเมินเดิมใน browser
 - แสดงราคาประเมินพร้อมคำอธิบายที่มาของราคา
 - แสดงรายงานพร้อมข้อมูลทรัพย์และรูปภาพสำหรับพิมพ์หรือบันทึกเป็น PDF
-- มีหน้า scaffold สำหรับ requirement ระยะถัดไป: review, export, bank integration และ security
+- มี interactive workflow สำหรับรับงาน มอบหมาย ส่งตรวจ ตีกลับ ส่งออก CSV บันทึกการส่ง และจำลอง bank integration
+- มีหน้า security posture และ activity log ที่บอกข้อจำกัดของ prototype ตามจริง
 
 ## Stack
 
@@ -57,16 +58,18 @@ http://localhost:3000
 |---|---|
 | `/` | Dashboard รายการงานประเมินในเครื่องนี้ |
 | `/jobs/new` | สร้างงานประเมินใหม่ |
+| `/jobs/[jobId]/intake` | รับงานจากธนาคารและมอบหมายทีม B |
 | `/jobs/[jobId]/workflow` | แก้ไขข้อมูลงาน |
 | `/jobs/[jobId]/property` | กรอกข้อมูลบ้านและที่ตั้ง |
 | `/jobs/[jobId]/photos` | เพิ่ม ดูตัวอย่าง และลบรูปหลักฐาน |
 | `/jobs/[jobId]/references` | ค้น นำเข้า เลือก และสรุปข้อมูลอ้างอิงราคา |
 | `/jobs/[jobId]/valuation` | เลือกวิธีประเมินและคำนวณราคา |
 | `/jobs/[jobId]/report` | ตรวจรายงานและพิมพ์หรือบันทึก PDF |
-| `/jobs/[jobId]/review` | Scaffold สำหรับ workflow ผู้ตรวจสอบ |
-| `/jobs/[jobId]/export` | Scaffold สำหรับ export Excel/CSV |
-| `/jobs/[jobId]/integration` | Scaffold สำหรับส่งข้อมูลไปธนาคาร |
-| `/security` | Scaffold สำหรับ security, role, audit และ privacy policy |
+| `/jobs/[jobId]/review` | ตรวจความครบถ้วน ดู timeline และตีกลับงาน |
+| `/jobs/[jobId]/export` | Preview และดาวน์โหลด generic CSV |
+| `/jobs/[jobId]/handoff` | บันทึกการส่งผลกลับธนาคารในโหมด demo |
+| `/jobs/[jobId]/integration` | Preview payload และจำลอง bank API โดยไม่เรียก network |
+| `/security` | Security posture, role summary และ local activity log |
 
 ## คำสั่งตรวจสอบคุณภาพ
 
@@ -113,7 +116,7 @@ Requirement หลักของ MVP ถูก map ไว้ใน [docs/requir
 - ยังไม่มี authentication, authorization, audit log, encryption หรือ retention policy สำหรับ production
 - ยังไม่มี Prisma/database implementation แม้เอกสาร architecture จะกำหนดเป็นเป้าหมายระยะถัดไป
 - ยังไม่มีการ export ไฟล์ตาม schema ธนาคารหรือส่งข้อมูลผ่าน API จริง
-- หน้า review, export, integration และ security เป็น scaffold เพื่อแสดงขอบเขต requirement ระยะถัดไปเท่านั้น
+- review, export, integration, handoff และ security เป็น interactive demo ในเครื่อง ไม่ใช่ production workflow หรือ audit evidence
 
 ## การพิมพ์รายงาน
 

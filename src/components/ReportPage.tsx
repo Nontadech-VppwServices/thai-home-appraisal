@@ -9,6 +9,7 @@ import { sourceLabels, summarizePriceReferences, unitLabels, type PriceReference
 import { getJob, getSelectedPriceReferences, subscribeToJobs } from "@/infrastructure/storage/appraisalStore";
 import { AccessBanner, Button, EmptyState, LinkButton, PageHeader, StatusBadge } from "./ui";
 import { useAccess } from "./useAccess";
+import { JobContext } from "./JobContext";
 
 const UNSET = "ยังไม่ระบุ";
 
@@ -55,6 +56,7 @@ export function ReportPage({ jobId }: { jobId: string }) {
           eyebrow="ตรวจก่อนพิมพ์"
           title="ตรวจรายงานก่อนพิมพ์"
         />
+        <JobContext job={job} />
       </div>
 
       <article className="report-sheet rounded-shell border border-line p-6 shadow-panel md:p-10 print:border-0 print:shadow-none">

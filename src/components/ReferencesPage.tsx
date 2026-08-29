@@ -46,6 +46,7 @@ import {
   Toast,
 } from "./ui";
 import { useAccess } from "./useAccess";
+import { JobContext } from "./JobContext";
 
 const tabs: { value: PriceReferenceSource; label: string }[] = [
   { value: "official", label: "ราคาภาครัฐ" },
@@ -69,8 +70,10 @@ type ActiveSearchCriteria = Omit<ReferenceSearchCriteria, "sourceCategory"> & {
 export function ReferencesPage({ jobId }: { jobId: string }) {
   const { permission, team } = useAccess();
   const level = permission("references");
-  const readOnly = !canEdit(level);
   const job = useSyncExternalStore(subscribeToJobs, () => getJob(jobId), emptyJob);
+  const permissionReadOnly = !canEdit(level);
+  const editableStatus = job?.status === "assigned" || job?.status === "changesRequested";
+  const readOnly = permissionReadOnly || !editableStatus;
   const [criteria, setCriteria] = useState<ActiveSearchCriteria>({
     latitude: "",
     longitude: "",
@@ -137,7 +140,10 @@ export function ReferencesPage({ jobId }: { jobId: string }) {
         title="ข้อมูลอ้างอิงราคา"
       />
 
-      {readOnly ? <AccessBanner level={canView(level) ? "read" : "none"} ownerLabel={ownerTeamLabel("references")} /> : null}
+      {permissionReadOnly ? <AccessBanner level={canView(level) ? "read" : "none"} ownerLabel={ownerTeamLabel("references")} /> : null}
+      {!permissionReadOnly && !editableStatus ? <div className="mb-6"><Notice tone={job.status === "submitted" ? "success" : "warning"}>งานอยู่ในสถานะ {statusLabels[job.status]} จึงล็อกการแก้ข้อมูลอ้างอิง</Notice></div> : null}
+
+      <JobContext job={job} />
 
       <Stepper
         currentIndex={3}

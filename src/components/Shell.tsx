@@ -241,9 +241,9 @@ function NavGroups({
     .filter((entry) => visible(entry.key))
     .map((entry) => ({ href: entry.href as string, label: entry.label, icon: menuIcons[entry.key] }));
 
-  const jobs: NavLink[] = activeJobId
+  const jobLinks = (keys: MenuKey[]): NavLink[] => activeJobId
     ? jobMenus
-        .filter((entry) => visible(entry.key))
+        .filter((entry) => keys.includes(entry.key) && visible(entry.key))
         .map((entry) => ({
           href: `/jobs/${activeJobId}/${entry.segment}`,
           label: entry.label,
@@ -251,10 +251,22 @@ function NavGroups({
         }))
     : [];
 
+  const jobGroups = [
+    { heading: "1 · รับงาน", links: jobLinks(["intake"]) },
+    { heading: "2 · ประเมิน", links: jobLinks(["workflow", "property", "photos", "references", "valuation", "report"]) },
+    { heading: "3 · ตรวจสอบ", links: jobLinks(["review"]) },
+    { heading: "4 · ส่งมอบ", links: jobLinks(["export", "handoff", "integration"]) },
+  ].filter((group) => group.links.length > 0);
+
   return (
     <div className="grid gap-6">
       <NavList links={base} pathname={pathname} />
-      {jobs.length > 0 ? <NavList heading="งานปัจจุบัน" links={jobs} pathname={pathname} /> : null}
+      {jobGroups.length > 0 ? (
+        <div className="grid gap-4 border-t border-line pt-4">
+          <div className="px-3 text-xs font-extrabold tracking-wide text-accent">งานปัจจุบัน</div>
+          {jobGroups.map((group) => <NavList heading={group.heading} key={group.heading} links={group.links} pathname={pathname} />)}
+        </div>
+      ) : null}
     </div>
   );
 }

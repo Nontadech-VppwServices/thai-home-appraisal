@@ -52,11 +52,28 @@ Prototype รองรับ `REQ-REFERENCE-001` ถึง `REQ-REFERENCE-005` �
 ### REQ-REPORT-002 ระบุข้อจำกัดการส่งธนาคาร
 Prototype ต้องแสดงให้ผู้ใช้ทราบว่าข้อมูลยังไม่ถูกส่งไปธนาคารจริง จนกว่าจะมีการยืนยัน API หรือแบบฟอร์มของธนาคารเป้าหมาย
 
-## ข้อกำหนดระยะถัดไป
-- `REQ-REVIEW-001`: ผู้ตรวจสอบขอแก้ไขหรืออนุมัติงาน พร้อมประวัติการเปลี่ยนสถานะ
-- `REQ-EXPORT-001`: ส่งออก Excel/CSV ตาม schema ของธนาคาร
-- `REQ-INTEGRATION-001`: ส่งข้อมูลผ่าน API ของแต่ละธนาคาร โดยมี authentication และการติดตามผล
-- `REQ-SECURITY-001`: login, role-based access, audit log, encryption, retention และคำขอเกี่ยวกับข้อมูลส่วนบุคคล
+## Interactive demo สำหรับข้อกำหนดระยะถัดไป
+
+### REQ-REVIEW-001 ตรวจและตีกลับงาน
+- หน้า review ต้องสรุปความพร้อม checklist ราคา หลักฐาน และประวัติสถานะ
+- ผู้ใช้ที่มีสิทธิ์ต้องตีกลับจาก `readyToSubmit` เป็น `changesRequested` ได้เมื่อระบุเหตุผล
+- การอนุมัติใน demo คือการไปขั้น Handoff โดยไม่เพิ่มสถานะใหม่
+
+### REQ-EXPORT-001 ส่งออกข้อมูล
+- ส่งออก generic CSV UTF-8 ได้หนึ่งงาน พร้อม preview และ escaping ที่ถูกต้อง
+- ห้ามส่งออก Data URL ของรูป และต้องระบุว่าไฟล์ยังไม่ใช่ schema ธนาคาร
+
+### REQ-INTEGRATION-001 จำลอง API ธนาคาร
+- แสดง JSON payload ที่ไม่มีข้อมูลรูปขนาดใหญ่ และสร้าง correlation ID เมื่อจำลองส่ง
+- ห้ามเรียก network หรือเปลี่ยนสถานะงาน และต้องบันทึก demo activity ในเครื่อง
+
+### REQ-SECURITY-001 แสดง security posture
+- แสดงตามจริงว่า login/permission/audit/storage ยังอยู่ฝั่ง client และไม่มี encryption/retention enforcement
+- แสดง local activity log และ role summary โดยห้ามอ้างว่าเป็น production audit evidence
+
+## ข้อกำหนดที่ยังต้องทำสำหรับ production
+- export ตาม schema ของแต่ละธนาคารและ integration ที่มี API contract/authentication จริง
+- login, server-side role-based access, audit log ที่แก้ไขไม่ได้, encryption, retention และคำขอเกี่ยวกับข้อมูลส่วนบุคคล
 - `REQ-PIPELINE-001` ถึง `REQ-PIPELINE-006` และ `REQ-ROLE-001`: สายงาน 3 ทีม A → B → C ดูรายละเอียดใน [pipeline.md](pipeline.md)
 - `REQ-REFERENCE-006`: ฐานข้อมูลกลาง สิทธิ์ฝั่งเซิร์ฟเวอร์ และ provider ภายนอกที่ได้รับอนุญาต
 - ดึงงานจากธนาคารและส่งผลกลับด้วย API หรือ RPA แทนการกรอกมือของทีม A และทีม C

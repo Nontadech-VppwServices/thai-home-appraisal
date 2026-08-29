@@ -3,9 +3,9 @@
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { canEdit, canView, ownerTeamLabel } from "@/domain/access";
-import { bankOptions } from "@/domain/appraisal";
+import { bankOptions, propertyTypeOptions } from "@/domain/appraisal";
 import { createDraftJob, saveJob } from "@/infrastructure/storage/appraisalStore";
-import { AccessBanner, Button, Field, FormSection, Input, PageHeader, Panel, Select } from "./ui";
+import { AccessBanner, Button, Field, FormSection, Input, PageHeader, Panel, Select, Textarea } from "./ui";
 import { useAccess } from "./useAccess";
 
 export function NewJobPage() {
@@ -19,15 +19,15 @@ export function NewJobPage() {
     event.preventDefault();
     if (readOnly) return;
     saveJob(job);
-    router.push(`/jobs/${job.id}/workflow`);
+    router.push(`/jobs/${job.id}/intake`);
   }
 
   return (
     <div className="mx-auto w-full max-w-2xl">
       <PageHeader
-        description="เริ่มจากข้อมูลที่ใช้ระบุงานก่อน แล้วค่อยกรอกข้อมูลทรัพย์ รูปถ่าย และวิธีประเมินในหน้าถัดไป"
-        eyebrow="งานใหม่"
-        title="สร้างงานประเมินใหม่"
+        description="เปิดงานจากข้อมูลที่ธนาคารส่งมา จากนั้นไปมอบหมายผู้ประเมินในขั้นรับงาน"
+        eyebrow="ทีม A · งานใหม่"
+        title="บันทึกงานจากธนาคาร"
       />
 
       {readOnly ? (
@@ -38,7 +38,7 @@ export function NewJobPage() {
         <form onSubmit={submit}>
           <fieldset className="contents" disabled={readOnly}>
           <FormSection
-            description="ข้อมูลสี่ช่องนี้ใช้ระบุงานในรายการ และแก้ไขภายหลังได้ตลอดที่ยังเป็นแบบร่าง"
+            description="ข้อมูลชุดนี้ใช้ตรวจงานซ้ำและเป็นหัวข้อมูลของทุกขั้นตอน"
             title="ข้อมูลงานเริ่มต้น"
           >
             <div className="grid gap-4 md:grid-cols-2">
@@ -58,6 +58,24 @@ export function NewJobPage() {
                   required
                   type="date"
                   value={job.workflow.visitDate}
+                />
+              </Field>
+              <Field htmlFor="receivedAt" label="วันที่รับงาน">
+                <Input
+                  id="receivedAt"
+                  onChange={(event) => setJob({ ...job, receivedAt: event.target.value })}
+                  required
+                  type="date"
+                  value={job.receivedAt}
+                />
+              </Field>
+              <Field htmlFor="dueDate" label="กำหนดส่ง">
+                <Input
+                  id="dueDate"
+                  onChange={(event) => setJob({ ...job, dueDate: event.target.value })}
+                  required
+                  type="date"
+                  value={job.dueDate}
                 />
               </Field>
               <Field htmlFor="clientName" label="ชื่อผู้ว่าจ้าง">
@@ -82,10 +100,45 @@ export function NewJobPage() {
                   ))}
                 </Select>
               </Field>
+              <Field htmlFor="propertyType" label="ประเภททรัพย์เบื้องต้น">
+                <Select
+                  id="propertyType"
+                  onChange={(event) => setJob({ ...job, property: { ...job.property, propertyType: event.target.value } })}
+                  value={job.property.propertyType}
+                >
+                  {propertyTypeOptions.map((type) => <option key={type}>{type}</option>)}
+                </Select>
+              </Field>
+              <Field htmlFor="siteContact" label="ผู้ติดต่อเข้าพื้นที่">
+                <Input
+                  id="siteContact"
+                  onChange={(event) => setJob({ ...job, workflow: { ...job.workflow, siteContactName: event.target.value } })}
+                  placeholder="ชื่อผู้ติดต่อ"
+                  value={job.workflow.siteContactName}
+                />
+              </Field>
+              <Field htmlFor="sitePhone" label="เบอร์ติดต่อ">
+                <Input
+                  id="sitePhone"
+                  inputMode="tel"
+                  onChange={(event) => setJob({ ...job, workflow: { ...job.workflow, siteContactPhone: event.target.value } })}
+                  value={job.workflow.siteContactPhone}
+                />
+              </Field>
+              <div className="md:col-span-2">
+                <Field htmlFor="address" label="ที่อยู่ทรัพย์เบื้องต้น">
+                  <Textarea
+                    id="address"
+                    onChange={(event) => setJob({ ...job, property: { ...job.property, address: event.target.value } })}
+                    required
+                    value={job.property.address}
+                  />
+                </Field>
+              </div>
             </div>
 
             <Button className="w-full sm:w-auto sm:justify-self-start" type="submit" variant="primary">
-              สร้างงานและไปต่อ
+              สร้างงานและไปมอบหมาย
             </Button>
           </FormSection>
           </fieldset>

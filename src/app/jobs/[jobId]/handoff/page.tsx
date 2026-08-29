@@ -1,6 +1,6 @@
-import { FuturePage } from "@/components/FuturePage";
+import { HandoffPage } from "@/components/HandoffPage";
 
 export default async function Page({ params }: { params: Promise<{ jobId: string }> }) {
   const { jobId } = await params;
-  return <FuturePage jobId={jobId} route="handoff" />;
+  return <HandoffPage jobId={jobId} />;
 }

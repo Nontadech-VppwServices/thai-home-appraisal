@@ -71,6 +71,8 @@ export type WorkflowInfo = {
   visitDate: string;
   clientName: string;
   bank: string;
+  siteContactName: string;
+  siteContactPhone: string;
 };
 
 export type PropertyInfo = {
@@ -107,6 +109,18 @@ export type ValuationResult = {
   basis: string;
 };
 
+export type SubmissionChannel = "email" | "bankPortal" | "api" | "other";
+
+export type BankSubmission = {
+  channel: SubmissionChannel;
+  sentAt: string;
+  sender: string;
+  bankReference: string;
+  note: string;
+  /** true เสมอใน prototype นี้ ใช้กันไม่ให้ UI สื่อว่าส่งไปธนาคารจริง */
+  simulated: true;
+};
+
 export type AppraisalJob = {
   id: string;
   status: JobStatus;
@@ -127,6 +141,8 @@ export type AppraisalJob = {
   assignee: string;
   /** เรียงเก่า -> ใหม่ มีอย่างน้อย 1 รายการเสมอ */
   statusHistory: StatusChange[];
+  /** หลักฐานการส่งกลับธนาคารในโหมด demo หรือ null เมื่อยังไม่ส่ง */
+  submission: BankSubmission | null;
 };
 
 export const bankOptions = [
@@ -159,45 +175,6 @@ export const checklistItems = [
   "รับทราบว่าต้นแบบยังไม่ส่งข้อมูลจริงไปธนาคาร",
 ];
 
-export const nextPhaseRequirements = [
-  {
-    id: "REQ-PIPELINE-001",
-    title: "ทีม A รับงานจากธนาคารเข้าระบบ",
-    route: "intake",
-    missing: "ต้องมี login และ role ทีม A รวมถึงยืนยันฟิลด์อ้างอิงของแต่ละธนาคารก่อนเปิดใช้งานจริง",
-  },
-  {
-    id: "REQ-PIPELINE-004",
-    title: "ทีม C ส่งผลประเมินกลับธนาคาร",
-    route: "handoff",
-    missing: "ต้องยืนยันช่องทางส่งงานของแต่ละธนาคารและข้อมูลตอบกลับ ก่อนบันทึกผลการส่งจริง",
-  },
-  {
-    id: "REQ-REVIEW-001",
-    title: "ผู้ตรวจสอบขอแก้ไขหรืออนุมัติงาน",
-    route: "review",
-    missing: "ต้องยืนยัน role ผู้ตรวจสอบ ผู้อนุมัติ และลำดับสถานะกับประวัติตาม REQ-PIPELINE-005 ก่อนเปิดใช้งานจริง",
-  },
-  {
-    id: "REQ-EXPORT-001",
-    title: "ส่งออก Excel/CSV ตาม schema ของธนาคาร",
-    route: "export",
-    missing: "ต้องได้รับ schema ของแต่ละธนาคารก่อนสร้างไฟล์ส่งออกจริง",
-  },
-  {
-    id: "REQ-INTEGRATION-001",
-    title: "ส่งข้อมูลผ่าน API ของแต่ละธนาคาร",
-    route: "integration",
-    missing: "ต้องมี sandbox, API contract, authentication และการติดตามผลก่อนเชื่อมต่อจริง",
-  },
-  {
-    id: "REQ-SECURITY-001",
-    title: "Login, บทบาททีม A/B/C, audit log, encryption และ retention",
-    route: "security",
-    missing: "ต้องทำ threat/privacy review กำหนดนโยบาย PDPA และยืนยันตารางสิทธิ์ตาม REQ-ROLE-001 ก่อน production",
-  },
-] as const;
-
 export function createEmptyJob(id: string, today: string): AppraisalJob {
   return {
     id,
@@ -207,6 +184,8 @@ export function createEmptyJob(id: string, today: string): AppraisalJob {
       visitDate: today,
       clientName: "",
       bank: "",
+      siteContactName: "",
+      siteContactPhone: "",
     },
     property: {
       address: "",
@@ -239,6 +218,7 @@ export function createEmptyJob(id: string, today: string): AppraisalJob {
     statusHistory: [
       { from: null, to: "intake", actor: "teamA", at: `${today}T00:00:00.000Z`, note: "รับงานเข้าระบบ" },
     ],
+    submission: null,
   };
 }
 
@@ -278,6 +258,7 @@ export function normalizeStoredJob(raw: unknown, fallbackToday: string): Apprais
     dueDate: isDateOnly(raw.dueDate) ? raw.dueDate : "",
     assignee: typeof raw.assignee === "string" ? raw.assignee : "",
     statusHistory: migrateHistory(raw.statusHistory, status, receivedAt),
+    submission: normalizeSubmission(raw.submission),
   };
 }
 
@@ -332,6 +313,104 @@ function asRecord(value: unknown): Record<string, unknown> {
 
 function isDateOnly(value: unknown): value is string {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function normalizeSubmission(value: unknown): BankSubmission | null {
+  if (!isRecord(value)) return null;
+  const channel = value.channel;
+  if (channel !== "email" && channel !== "bankPortal" && channel !== "api" && channel !== "other") return null;
+  if (typeof value.sentAt !== "string" || typeof value.sender !== "string") return null;
+  return {
+    channel,
+    sentAt: value.sentAt,
+    sender: value.sender,
+    bankReference: typeof value.bankReference === "string" ? value.bankReference : "",
+    note: typeof value.note === "string" ? value.note : "",
+    simulated: true,
+  };
+}
+
+/* --------------------------------------------------------------------------
+   ความพร้อมและการเปลี่ยนสถานะของ workflow
+-------------------------------------------------------------------------- */
+
+export type ReadinessItem = {
+  key: "property" | "photos" | "valuation";
+  label: string;
+  complete: boolean;
+};
+
+export type SubmissionReadiness = {
+  ready: boolean;
+  items: ReadinessItem[];
+};
+
+export function submissionReadiness(job: AppraisalJob): SubmissionReadiness {
+  const items: ReadinessItem[] = [
+    {
+      key: "property",
+      label: "ข้อมูลทรัพย์และพื้นที่ครบ",
+      complete: job.property.address.trim() !== "" && job.property.usableArea > 0,
+    },
+    { key: "photos", label: "มีรูปหลักฐานอย่างน้อย 1 รูป", complete: job.photos.length > 0 },
+    {
+      key: "valuation",
+      label: "มีราคาประเมินมากกว่า 0 บาท",
+      complete: calculateValuation(job.property, job.valuation).price > 0,
+    },
+  ];
+  return { ready: items.every((item) => item.complete), items };
+}
+
+export function intakeMissingFields(job: AppraisalJob): string[] {
+  const required: Array<[string, string]> = [
+    [job.workflow.bank, "ธนาคาร"],
+    [job.workflow.caseId, "เลขอ้างอิงธนาคาร"],
+    [job.receivedAt, "วันที่รับงาน"],
+    [job.dueDate, "กำหนดส่ง"],
+    [job.workflow.clientName, "ผู้ว่าจ้าง"],
+    [job.property.address, "ที่อยู่ทรัพย์"],
+    [job.workflow.visitDate, "วันลงพื้นที่"],
+    [job.assignee, "ผู้ประเมินทีม B"],
+  ];
+  return required.flatMap(([value, label]) => value.trim() === "" ? [label] : []);
+}
+
+export function hasDuplicateActiveBankReference(
+  jobs: AppraisalJob[],
+  jobId: string,
+  bank: string,
+  caseId: string,
+): boolean {
+  const cleanBank = bank.trim();
+  const cleanCaseId = caseId.trim().toLocaleLowerCase("th");
+  if (!cleanBank || !cleanCaseId) return false;
+  return jobs.some((job) => (
+    job.id !== jobId &&
+    job.status !== "submitted" &&
+    job.workflow.bank.trim() === cleanBank &&
+    job.workflow.caseId.trim().toLocaleLowerCase("th") === cleanCaseId
+  ));
+}
+
+export function transitionJob(
+  job: AppraisalJob,
+  to: JobStatus,
+  actor: Team,
+  note: string,
+  at = new Date().toISOString(),
+): AppraisalJob {
+  if (!canTransition(job.status, to)) {
+    throw new Error(`เปลี่ยนสถานะจาก ${statusLabels[job.status]} เป็น ${statusLabels[to]} ไม่ได้`);
+  }
+  const cleanNote = note.trim();
+  if (to === "changesRequested" && cleanNote === "") throw new Error("กรุณาระบุเหตุผลที่ตีกลับ");
+  return {
+    ...job,
+    status: to,
+    updatedAt: at,
+    statusHistory: [...job.statusHistory, { from: job.status, to, actor, at, note: cleanNote }],
+  };
 }
 
 /* --------------------------------------------------------------------------

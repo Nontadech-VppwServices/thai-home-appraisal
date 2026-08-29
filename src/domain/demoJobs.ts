@@ -125,6 +125,8 @@ function createDemoJob(index: number, today: string, random: () => number): Appr
     visitDate: shiftDate(receivedAt, Math.round(between([1, 6], random))),
     clientName: pick(clients, random),
     bank: pick(bankOptions, random),
+    siteContactName: "ผู้ติดต่อหน้างาน",
+    siteContactPhone: "080-000-0000",
   };
 
   const usableArea = Math.round(between([48, 320], random));

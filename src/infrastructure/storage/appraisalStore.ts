@@ -1,4 +1,22 @@
-import { calculateValuation, createEmptyJob, normalizeChecklistState, normalizeStoredJob, type AppraisalJob } from "@/domain/appraisal";
+import {
+  calculateValuation,
+  createEmptyJob,
+  hasDuplicateActiveBankReference,
+  intakeMissingFields,
+  normalizeChecklistState,
+  normalizeStoredJob,
+  submissionReadiness,
+  transitionJob,
+  type AppraisalJob,
+  type BankSubmission,
+  type JobStatus,
+} from "@/domain/appraisal";
+import {
+  appendDemoActivity,
+  normalizeDemoActivities,
+  type DemoActivity,
+  type DemoActivityType,
+} from "@/domain/activity";
 import {
   normalizePriceReference,
   migrateLegacyComparablePrices,
@@ -19,9 +37,10 @@ type StoredState = {
   jobs: StoredJobs;
   references: StoredReferences;
   currentJobId: string | null;
+  activities: DemoActivity[];
 };
 
-const emptyState: StoredState = { jobs: {}, references: {}, currentJobId: null };
+const emptyState: StoredState = { jobs: {}, references: {}, currentJobId: null, activities: [] };
 let cachedRawValue: string | null = null;
 let cachedStateValue: StoredState = emptyState;
 let cachedListState: StoredState | null = null;
@@ -75,6 +94,101 @@ export function getCurrentJobId(): string | null {
   return readState().currentJobId;
 }
 
+export function listDemoActivities(jobId?: string): DemoActivity[] {
+  const activities = readState().activities;
+  return jobId ? activities.filter((activity) => activity.jobId === jobId) : activities;
+}
+
+export function hasDuplicateBankReference(jobId: string, bank: string, caseId: string): boolean {
+  return hasDuplicateActiveBankReference(Object.values(readState().jobs), jobId, bank, caseId);
+}
+
+export function assignAppraisalJob(job: AppraisalJob, actor: Team): AppraisalJob {
+  const state = readState();
+  if (!state.jobs[job.id]) throw new Error("ไม่พบงานประเมิน");
+  const missing = intakeMissingFields(job);
+  if (missing.length > 0) throw new Error(`กรุณากรอก ${missing.join(", ")}`);
+  if (hasDuplicateBankReference(job.id, job.workflow.bank, job.workflow.caseId)) {
+    throw new Error("เลขอ้างอิงนี้ซ้ำกับงานที่ยังไม่ปิดของธนาคารเดียวกัน");
+  }
+  if (job.status !== "intake" && job.status !== "assigned") {
+    throw new Error("แก้ผู้ประเมินได้เฉพาะก่อนงานถึงทีม C");
+  }
+  const at = new Date().toISOString();
+  const nextJob = job.status === "intake"
+    ? transitionJob(job, "assigned", actor, `มอบหมายให้ ${job.assignee}`, at)
+    : { ...job, updatedAt: at };
+  const activity = makeActivity("assigned", job.id, actor, job.assignee, at);
+  writeState({
+    ...state,
+    jobs: { ...state.jobs, [job.id]: nextJob },
+    currentJobId: job.id,
+    activities: appendDemoActivity(state.activities, activity),
+  });
+  return nextJob;
+}
+
+export function transitionStoredJob(jobId: string, to: JobStatus, actor: Team, note: string): AppraisalJob {
+  const state = readState();
+  const job = state.jobs[jobId];
+  if (!job) throw new Error("ไม่พบงานประเมิน");
+  if (to === "readyToSubmit" && !submissionReadiness(job).ready) {
+    throw new Error("ข้อมูลทรัพย์ รูปหลักฐาน และราคาประเมินยังไม่ครบ");
+  }
+  const at = new Date().toISOString();
+  const nextJob = transitionJob(job, to, actor, note, at);
+  const type: DemoActivityType | null = to === "readyToSubmit"
+    ? "sentToReview"
+    : to === "changesRequested" ? "changesRequested" : null;
+  writeState({
+    ...state,
+    jobs: { ...state.jobs, [jobId]: nextJob },
+    currentJobId: jobId,
+    activities: type
+      ? appendDemoActivity(state.activities, makeActivity(type, jobId, actor, note, at))
+      : state.activities,
+  });
+  return nextJob;
+}
+
+export function recordBankSubmission(
+  jobId: string,
+  submission: BankSubmission,
+  actor: Team,
+): AppraisalJob {
+  const state = readState();
+  const job = state.jobs[jobId];
+  if (!job) throw new Error("ไม่พบงานประเมิน");
+  if (!submission.sender.trim() || !submission.sentAt.trim()) throw new Error("กรุณาระบุผู้ส่งและวันเวลาที่ส่ง");
+  if (Number.isNaN(new Date(submission.sentAt).getTime())) throw new Error("รูปแบบวันเวลาที่ส่งไม่ถูกต้อง");
+  const at = new Date().toISOString();
+  const nextJob = {
+    ...transitionJob(job, "submitted", actor, "บันทึกการส่งกลับธนาคารในโหมด demo", at),
+    submission: { ...submission, simulated: true as const },
+  };
+  const activity = makeActivity("bankHandoff", jobId, actor, submission.bankReference, at);
+  writeState({
+    ...state,
+    jobs: { ...state.jobs, [jobId]: nextJob },
+    currentJobId: jobId,
+    activities: appendDemoActivity(state.activities, activity),
+  });
+  return nextJob;
+}
+
+export function recordDemoActivity(
+  type: DemoActivityType,
+  jobId: string | null,
+  actor: Team,
+  reference: string,
+  result: DemoActivity["result"] = "success",
+): DemoActivity {
+  const state = readState();
+  const activity = makeActivity(type, jobId, actor, reference, new Date().toISOString(), result);
+  writeState({ ...state, activities: appendDemoActivity(state.activities, activity) });
+  return activity;
+}
+
 /** คลัง snapshot กลางของ prototype (ยังจำกัดอยู่ใน browser เครื่องนี้) */
 export function listPriceReferences(): PriceReferenceSnapshot[] {
   const state = readState();
@@ -112,6 +226,7 @@ export function captureAndSelectPriceReference(
     : [...job.selectedReferences, { referenceId: reference.id, selectedAt: now, selectedBy, adjustmentNote }];
 
   writeState({
+    ...state,
     jobs: { ...state.jobs, [jobId]: { ...job, selectedReferences, updatedAt: now } },
     references: { ...state.references, [reference.id]: reference },
     currentJobId: jobId,
@@ -292,6 +407,7 @@ function parseState(value: string): StoredState {
       jobs,
       references,
       currentJobId: parsed.currentJobId ?? null,
+      activities: normalizeDemoActivities(parsed.activities),
     };
     cachedListState = null;
     cachedReferenceState = null;
@@ -322,6 +438,8 @@ function migrateLegacyJob(): StoredState | null {
       visitDate: legacy.fields?.visitDate ?? todayISO(),
       clientName: legacy.fields?.clientName ?? "",
       bank: legacy.fields?.bank ?? "",
+      siteContactName: "",
+      siteContactPhone: "",
     };
     job.property = {
       address: legacy.fields?.address ?? "",
@@ -350,7 +468,7 @@ function migrateLegacyJob(): StoredState | null {
       dataUrl,
     }));
 
-    const state = { jobs: { [job.id]: job }, references: {}, currentJobId: job.id };
+    const state = { jobs: { [job.id]: job }, references: {}, currentJobId: job.id, activities: [] };
     writeState(state);
     return state;
   } catch {
@@ -361,4 +479,23 @@ function migrateLegacyJob(): StoredState | null {
 function numberField(value: string | undefined): number {
   const numberValue = Number(value);
   return Number.isFinite(numberValue) ? numberValue : 0;
+}
+
+function makeActivity(
+  type: DemoActivityType,
+  jobId: string | null,
+  actor: Team,
+  reference: string,
+  at: string,
+  result: DemoActivity["result"] = "success",
+): DemoActivity {
+  return {
+    id: globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `activity-${Date.now()}`,
+    type,
+    jobId,
+    actor,
+    at,
+    result,
+    reference: reference.trim(),
+  };
 }

@@ -18,16 +18,16 @@
 | REQ-REFERENCE-006 | `src/domain/access.ts` และ link-out ภายนอก | ทีม B แก้ได้ A/C อ่านได้; ยังไม่มี server auth/API/provider จริง | บางส่วน |
 | REQ-REPORT-001 | `/jobs/[jobId]/report` และ print CSS ใน `src/app/globals.css` | เปิด report แล้วกดพิมพ์/บันทึก PDF จาก browser print dialog | ทำแล้ว |
 | REQ-REPORT-002 | notice ใน checklist และ `/jobs/[jobId]/report` | ตรวจข้อความว่า prototype ยังไม่ส่งข้อมูลจริงไปธนาคาร | ทำแล้ว |
-| REQ-REVIEW-001 | `/jobs/[jobId]/review` | แสดงหน้า scaffold โดยลำดับสถานะและประวัติอ้างตาม `REQ-PIPELINE-005` | Scaffold ระยะถัดไป |
-| REQ-EXPORT-001 | `/jobs/[jobId]/export` | แสดงหน้า scaffold พร้อมข้อจำกัดว่าต้องกำหนด schema ธนาคาร | Scaffold ระยะถัดไป |
-| REQ-INTEGRATION-001 | `/jobs/[jobId]/integration` | แสดงหน้า scaffold พร้อมข้อจำกัดเรื่อง sandbox/API/auth/tracking | Scaffold ระยะถัดไป |
-| REQ-SECURITY-001 | `/security` | แสดงหน้า scaffold พร้อมข้อจำกัดเรื่อง threat/privacy review และ PDPA | Scaffold ระยะถัดไป |
-| REQ-PIPELINE-001 | `/jobs/[jobId]/intake` | แสดงหน้า scaffold พร้อมข้อจำกัดว่าต้องมี login และ role ทีม A ก่อน | Scaffold ระยะถัดไป |
-| REQ-PIPELINE-002 | `/jobs/[jobId]/intake` | แสดงหน้า scaffold พร้อมข้อจำกัดว่ายังไม่มีบัญชีผู้ประเมินให้มอบหมาย | Scaffold ระยะถัดไป |
-| REQ-PIPELINE-003 | `/jobs/[jobId]/{property,photos,valuation}` | login เป็นทีม B แล้วแก้ได้ ส่วนทีม A/C เห็นเป็น read-only พร้อมแถบเตือน (บังคับฝั่ง client เท่านั้น) | บางส่วน |
-| REQ-PIPELINE-004 | `/jobs/[jobId]/handoff` | แสดงหน้า scaffold พร้อมข้อจำกัดว่าต้องยืนยันช่องทางส่งงานของธนาคารก่อน | Scaffold ระยะถัดไป |
-| REQ-PIPELINE-005 | `src/domain/appraisal.ts` และ `/jobs/[jobId]/review` | `JobStatus` ปัจจุบันสร้างจริงแค่ `draft`/`saved` ยังไม่มี state machine และประวัติ | Scaffold ระยะถัดไป |
-| REQ-PIPELINE-006 | `/jobs/[jobId]/handoff` และ `/jobs/[jobId]/review` | แสดงหน้า scaffold พร้อมข้อจำกัดเรื่องสถานะและสิทธิ์ | Scaffold ระยะถัดไป |
+| REQ-REVIEW-001 | `/jobs/[jobId]/review` | ตรวจ readiness/checklist/timeline แล้วตีกลับพร้อมเหตุผล หรือไปขั้นส่งมอบ | ทำแล้วใน demo |
+| REQ-EXPORT-001 | `/jobs/[jobId]/export` | preview และดาวน์โหลด generic CSV UTF-8; ระบุว่าไม่ใช่ schema ธนาคาร | ทำแล้วใน demo |
+| REQ-INTEGRATION-001 | `/jobs/[jobId]/integration` | preview JSON, จำลอง correlation ID และยืนยันว่าไม่มี network request | ทำแล้วใน demo |
+| REQ-SECURITY-001 | `/security` | แสดง security posture, role summary และ local activity log พร้อมข้อจำกัด | บางส่วน · ไม่มี production security |
+| REQ-PIPELINE-001 | `/jobs/new` และ `/jobs/[jobId]/intake` | บันทึกธนาคาร เลขอ้างอิง วันที่รับ/กำหนดส่ง ผู้ว่าจ้าง ทรัพย์และผู้ติดต่อ | ทำแล้วใน demo |
+| REQ-PIPELINE-002 | `/jobs/[jobId]/intake` | ระบุผู้ประเมิน/วันลงพื้นที่ ตรวจข้อมูลบังคับและเลขอ้างอิงซ้ำก่อนมอบหมาย | ทำแล้วใน demo |
+| REQ-PIPELINE-003 | `/jobs/[jobId]/{property,photos,references,valuation}` | แก้ได้เฉพาะ assigned/changesRequested และส่งตรวจเมื่อทรัพย์ รูป และราคาครบ | ทำแล้วใน demo |
+| REQ-PIPELINE-004 | `/jobs/[jobId]/handoff` | บันทึกช่องทาง เวลา ผู้ส่ง เลขตอบกลับ แล้วล็อกงานเป็น submitted | ทำแล้วใน demo |
+| REQ-PIPELINE-005 | `src/domain/appraisal.ts`, `appraisalStore.ts` และ `/jobs/[jobId]/review` | unit test transition, ห้ามข้ามขั้น และแสดงประวัติเรียงเวลา | ทำแล้วใน demo |
+| REQ-PIPELINE-006 | `/jobs/[jobId]/review` | บังคับเหตุผลก่อนเปลี่ยนเป็น changesRequested และแสดงเหตุผลใน timeline | ทำแล้วใน demo |
 | REQ-ROLE-001 | `/login`, `src/domain/access.ts` และ `src/components/Shell.tsx` | กดเข้าแต่ละทีมแล้วตรวจว่าเมนูและสิทธิ์ตรงตารางใน `pipeline.md` โดย `src/domain/access.test.ts` ตรึงค่าตั้งต้นไว้ | Demo เท่านั้น ยังไม่บังคับฝั่งเซิร์ฟเวอร์ |
 | REQ-ROLE-002 | `/permissions` และ `src/infrastructure/storage/accessStore.ts` | ปรับค่าในตารางแล้วเมนูเปลี่ยนทันที reload แล้วค่ายังอยู่ และกดคืนค่ามาตรฐานได้ | ทำแล้ว |
 | REQ-INSIGHT-001 | `/insights` และ `src/domain/access.ts` | login เป็นผู้ดูแลระบบแล้วเปิดเมนู `รายงานภาพรวม`; login เป็นทีม A/B/C แล้วพิมพ์ URL ต้องเห็นคำอธิบายสิทธิ์ | Demo เท่านั้น ยังไม่บังคับฝั่งเซิร์ฟเวอร์ |
