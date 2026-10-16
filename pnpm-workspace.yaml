@@ -1,2 +1,5 @@
 allowBuilds:
+  esbuild: true
+  rclone.js: false
   unrs-resolver: true
+  workerd: true

@@ -1,141 +1,59 @@
-# Requirement: สายงาน 3 ทีม (A → B → C)
+# Team Pipeline and Roles
 
-งานประเมินหนึ่งงานไหลผ่าน 3 ทีม เอกสารนี้กำหนดหน้าที่ของแต่ละทีม การส่งต่องาน และสถานะงานที่ใช้ร่วมกัน
+The browser demo models Team A intake, Team B appraisal, and Team C handoff. It has no real accounts, server-side authorization, or production audit. Team A records bank work manually; Team C records manual delivery.
 
-`REQ-PIPELINE-001` ถึง `REQ-PIPELINE-006` มี interactive demo ในเบราว์เซอร์แล้ว แต่ยังไม่ใช่ production workflow เพราะไม่มีบัญชีผู้ใช้ backend และ server-side authorization
-
-ส่วน `REQ-ROLE-001` และ `REQ-ROLE-002` มี UI สำหรับ demo แล้ว แต่บังคับสิทธิ์ที่ฝั่ง client เท่านั้น
-ดูหัวข้อ **ข้อจำกัดของ prototype รุ่นนี้** ใต้ `REQ-ROLE-001`
-
-## ภาพรวมสายงาน
-
-| ทีม | หน้าที่ | รับเข้า | ส่งออก | สถานะเมื่อทำเสร็จ |
-|---|---|---|---|---|
-| ทีม A | นำข้อมูลงานจากธนาคารเข้าระบบ และมอบหมายให้ทีม B | ข้อมูลงานจากธนาคาร (กรอกมือ) | งานที่มีข้อมูลอ้างอิงธนาคารครบ | `รอลงพื้นที่` |
-| ทีม B | ลงพื้นที่และรวบรวมข้อมูลอ้างอิงราคา | งานที่ได้รับมอบหมาย | ข้อมูลทรัพย์ รูปถ่าย หลักฐานราคา และราคาประเมิน | `รอส่งธนาคาร` |
-| ทีม C | ตรวจความครบถ้วนแล้วนำผลส่งกลับธนาคาร | งานที่ทีม B ประเมินเสร็จ | ผลประเมินที่ส่งธนาคารแล้ว พร้อมหลักฐานการส่ง | `ส่งธนาคารแล้ว` |
-
-## สถานะงานเป้าหมาย
-
-| สถานะ | ค่าใน `JobStatus` | ทีมที่รับผิดชอบ |
+| Status | `JobStatus` | Owner |
 |---|---|---|
-| รอมอบหมาย | `intake` | ทีม A |
-| รอลงพื้นที่ | `assigned` | ทีม B |
-| รอส่งธนาคาร | `readyToSubmit` | ทีม C |
-| ขอแก้ไข | `changesRequested` | ทีม B |
-| ส่งธนาคารแล้ว | `submitted` | — |
+| Awaiting assignment | `intake` | Team A |
+| Assigned for inspection | `assigned` | Team B |
+| Awaiting bank handoff | `readyToSubmit` | Team C |
+| Changes requested | `changesRequested` | Team B |
+| Submitted to bank | `submitted` | None |
 
-`src/domain/appraisal.ts` ใช้ชุดสถานะในตารางนี้แล้ว และ migrate ค่า legacy เดิมเข้าสู่สถานะใหม่เมื่ออ่านจาก `localStorage`
+Legacy statuses are normalized when read from `localStorage`.
 
-## ขั้นตอนทีม A
+## REQ-PIPELINE-001 Capture bank work
 
-### REQ-PIPELINE-001 บันทึกงานจากธนาคาร
-**เมื่อ** ทีม A ได้รับงานประเมินจากธนาคาร **ผู้ใช้ต้อง** บันทึกงานเข้าระบบด้วยการกรอกข้อมูลอ้างอิงของธนาคารได้
+Team A records bank name and reference, receipt and due dates, client, preliminary property data, and site contact. A new job starts in `intake`. The same bank reference cannot be reused by another open job.
 
-**เกณฑ์ยอมรับ**
-- บันทึก ธนาคาร เลขที่อ้างอิงของธนาคาร วันที่รับงาน กำหนดส่งงาน และผู้ว่าจ้าง
-- บันทึกข้อมูลทรัพย์เบื้องต้นที่ธนาคารให้มา เช่น ที่อยู่ ประเภททรัพย์ และผู้ติดต่อเข้าพื้นที่
-- งานที่บันทึกใหม่มีสถานะ `รอมอบหมาย`
-- เลขที่อ้างอิงของธนาคารต้องไม่ซ้ำกับงานที่ยังไม่ปิดของธนาคารเดียวกัน
+## REQ-PIPELINE-002 Assign an appraiser
 
-### REQ-PIPELINE-002 มอบหมายงานให้ทีม B
-**เมื่อ** งานอยู่ในสถานะ `รอมอบหมาย` **ผู้ใช้ต้อง** ระบุผู้ประเมินของทีม B และวันนัดลงพื้นที่ เพื่อส่งงานต่อได้
+Team A selects a Team B appraiser and inspection date before assignment. The job becomes `assigned`. The appraiser can be changed until the job reaches `readyToSubmit`.
 
-**เกณฑ์ยอมรับ**
-- ต้องเลือกผู้ประเมินและวันนัดก่อนจึงมอบหมายได้
-- เมื่อมอบหมายแล้วสถานะเปลี่ยนเป็น `รอลงพื้นที่`
-- เปลี่ยนผู้ประเมินภายหลังได้ตราบใดที่งานยังไม่ถึงสถานะ `รอส่งธนาคาร`
+## REQ-PIPELINE-003 Perform the appraisal
 
-## ขั้นตอนทีม B
+Team B sees Team A's bank-reference fields as read-only and enters property details, at least one photo, price evidence, and valuation. Submission requires property data, a photo, and a valuation; it moves the job to `readyToSubmit`. See `REQ-PROPERTY-001`, `REQ-PHOTO-001`, `REQ-REFERENCE-001`–`005`, and `REQ-VALUATION-001`.
 
-### REQ-PIPELINE-003 ประเมินหน้างานตามข้อมูลที่ได้รับ
-**เมื่อ** ทีม B เปิดงานที่ได้รับมอบหมาย **ระบบต้อง** แสดงข้อมูลจากทีม A แบบอ่านอย่างเดียว และให้ทีม B กรอกผลการประเมินหน้างานได้
+## REQ-PIPELINE-004 Record bank handoff
 
-**เกณฑ์ยอมรับ**
-- ข้อมูลอ้างอิงธนาคารจาก `REQ-PIPELINE-001` แก้ไขไม่ได้จากหน้าจอของทีม B
-- ทีม B กรอกข้อมูลทรัพย์ตาม `REQ-PROPERTY-001` รูปถ่ายตาม `REQ-PHOTO-001` ค้น/เลือกหลักฐานตาม `REQ-REFERENCE-001`–`005` และราคาตาม `REQ-VALUATION-001`
-- ส่งงานต่อได้เมื่อมีข้อมูลทรัพย์ รูปถ่ายอย่างน้อย 1 รูป และราคาประเมินแล้วเท่านั้น
-- เมื่อส่งงานต่อ สถานะเปลี่ยนเป็น `รอส่งธนาคาร`
+Team C reviews completeness, then records channel, time, sender, and bank response reference. Completion moves the job to `submitted` and locks edits. Incomplete work must be returned through `REQ-PIPELINE-006`.
 
-## ขั้นตอนทีม C
+## REQ-PIPELINE-005 Enforce transitions and history
 
-### REQ-PIPELINE-004 ส่งผลกลับธนาคารและบันทึกผลการส่ง
-**เมื่อ** งานอยู่ในสถานะ `รอส่งธนาคาร` **ผู้ใช้ต้อง** ตรวจความครบถ้วนแล้วบันทึกการส่งผลให้ธนาคารได้
+Allow `intake → assigned → readyToSubmit → submitted` and the return path `readyToSubmit → changesRequested → readyToSubmit`. No skipped transitions or changes after `submitted`. Every transition records old/new status, actor, time, and note; show history chronologically. Current history is browser-local and not tamper-proof.
 
-**เกณฑ์ยอมรับ**
-- แสดง checklist ความครบถ้วนของงานก่อนส่ง ตาม `checklistItems` ที่ใช้อยู่
-- บันทึกช่องทางที่ส่ง วันเวลาที่ส่ง ผู้ส่ง และเลขอ้างอิงตอบกลับจากธนาคาร
-- เมื่อบันทึกการส่งแล้วสถานะเปลี่ยนเป็น `ส่งธนาคารแล้ว` และข้อมูลงานแก้ไขไม่ได้อีก
-- หากข้อมูลไม่ครบ ทีม C ต้องตีกลับตาม `REQ-PIPELINE-006` แทนการส่ง
+## REQ-PIPELINE-006 Return work for correction
 
-## สถานะและสิทธิ์
+Team C or Team A must provide a reason before returning a job to Team B. The job becomes `changesRequested`, Team B can edit it again, and the reason appears in status history.
 
-### REQ-PIPELINE-005 ลำดับสถานะและประวัติการส่งต่อ
-**เมื่อ** สถานะของงานเปลี่ยน **ระบบต้อง** บังคับลำดับขั้นและบันทึกประวัติการเปลี่ยนสถานะไว้
+## REQ-ROLE-001 Bind roles to real accounts
 
-**เกณฑ์ยอมรับ**
-- อนุญาตเฉพาะลำดับ `รอมอบหมาย` → `รอลงพื้นที่` → `รอส่งธนาคาร` → `ส่งธนาคารแล้ว` และเส้นทางตีกลับ `ขอแก้ไข` → `รอส่งธนาคาร`
-- ข้ามขั้นไม่ได้ และงานที่ `ส่งธนาคารแล้ว` เปลี่ยนสถานะต่อไม่ได้
-- ทุกการเปลี่ยนสถานะบันทึก สถานะเดิม สถานะใหม่ ผู้ทำ เวลา และหมายเหตุ
-- ประวัติทั้งหมดแสดงเรียงตามเวลาในหน้างานได้
+**Production acceptance target, not completed:** accounts can hold Team A, B, C, or administrator roles; unauthorized actions are rejected server-side; history actors refer to real accounts. The intended permission matrix is:
 
-### REQ-PIPELINE-006 ตีกลับงานให้ทีม B แก้ไข
-**เมื่อ** ทีม C หรือทีม A พบว่าข้อมูลไม่ครบหรือไม่ถูกต้อง **ผู้ใช้ต้อง** ตีกลับงานให้ทีม B พร้อมเหตุผลได้
-
-**เกณฑ์ยอมรับ**
-- ต้องระบุเหตุผลก่อนตีกลับ
-- สถานะเปลี่ยนเป็น `ขอแก้ไข` และงานกลับไปแก้ไขได้ตาม `REQ-PIPELINE-003`
-- เหตุผลการตีกลับปรากฏในประวัติตาม `REQ-PIPELINE-005`
-
-### REQ-ROLE-001 บทบาททีม A/B/C ผูกกับบัญชีผู้ใช้
-**เมื่อ** ผู้ใช้เข้าสู่ระบบ **ระบบต้อง** กำหนดสิทธิ์การเข้าถึงและแก้ไขงานตามบทบาทของผู้ใช้
-
-**เกณฑ์ยอมรับ**
-- แต่ละบัญชีมีบทบาทอย่างน้อยหนึ่งใน `ทีม A`, `ทีม B`, `ทีม C`, `ผู้ดูแลระบบ`
-- สิทธิ์เป็นไปตามตารางด้านล่าง และการกระทำที่ไม่มีสิทธิ์ต้องถูกปฏิเสธที่ฝั่งเซิร์ฟเวอร์ ไม่ใช่ซ่อนปุ่มอย่างเดียว
-- ผู้ทำในประวัติตาม `REQ-PIPELINE-005` อ้างถึงบัญชีผู้ใช้จริง
-
-**ตารางสิทธิ์**
-
-| การกระทำ | ทีม A | ทีม B | ทีม C |
+| Action | Team A | Team B | Team C |
 |---|---|---|---|
-| บันทึกงานจากธนาคารและแก้ข้อมูลอ้างอิงธนาคาร | ได้ | ไม่ได้ | ไม่ได้ |
-| มอบหมายงานให้ผู้ประเมิน | ได้ | ไม่ได้ | ไม่ได้ |
-| แก้ข้อมูลทรัพย์ รูปถ่าย ข้อมูลอ้างอิง และราคา | ไม่ได้ | ได้ เฉพาะงานที่ได้รับมอบหมาย | ไม่ได้ |
-| บันทึกการส่งธนาคาร | ไม่ได้ | ไม่ได้ | ได้ |
-| ตีกลับงาน | ได้ | ไม่ได้ | ได้ |
-| ดูงานและรายงาน | ได้ | ได้ เฉพาะงานที่ได้รับมอบหมาย | ได้ |
+| Capture/edit bank references; assign appraiser | Edit | None | None |
+| Edit property, photos, drawings, price evidence, valuation | None | Assigned jobs only | None |
+| Record bank handoff | None | None | Edit |
+| Return work | Edit | None | Edit |
+| View jobs/reports | View | Assigned jobs only | View |
 
-ข้อกำหนดนี้ขึ้นกับ `REQ-SECURITY-001` ยังทำจริงไม่ได้จนกว่าจะมีระบบ login, การจัดการผู้ใช้ และ audit log
+The current `/login` buttons bypass authentication. Permissions are client-side; direct URLs can show a read-only page with a warning. Local history can be altered through Developer Tools. None of this meets server-side access or audit acceptance.
 
-**ข้อจำกัดของ prototype รุ่นนี้**
+## REQ-ROLE-002 Configure menu permissions
 
-`REQ-ROLE-001` **ยังไม่ถือว่าทำเสร็จ** สิ่งที่ implement แล้วเป็นเพียงการจำลองเพื่อใช้ demo:
+The administrator demo can set each team's menu permission to hidden, read-only, or editable. Defaults follow the matrix above. Hidden menus disappear from navigation; read-only menus explain why editing is unavailable. Changes apply immediately, survive a browser reload, and can be reset to defaults. Only the administrator demo role can change this matrix. This covers menus, not field-level or server-side permissions.
 
-- หน้า `/login` ใช้ปุ่มข้ามการยืนยันตัวตน ไม่มีบัญชีผู้ใช้ รหัสผ่าน หรือ session จริง
-- สิทธิ์ถูกบังคับที่ฝั่งเบราว์เซอร์เท่านั้น ขัดกับเกณฑ์ยอมรับข้อที่ระบุว่า "ต้องถูกปฏิเสธที่ฝั่งเซิร์ฟเวอร์ ไม่ใช่ซ่อนปุ่มอย่างเดียว"
-- ผู้ใช้ที่เปิด URL ของเมนูที่ไม่มีสิทธิ์ยังเห็นหน้าจอได้ แต่อยู่ในสถานะอ่านอย่างเดียวพร้อมแถบเตือน ซึ่งเป็นพฤติกรรมสำหรับ demo ไม่ใช่การควบคุมการเข้าถึงจริง
-- ประวัติสถานะและ demo activity log อยู่ใน `localStorage` จึงแก้ไขจาก Developer Tools ได้และยังใช้เป็น audit evidence จริงไม่ได้
+## Deferred
 
-ก่อน production ต้องแทนที่ทั้งหมดนี้ด้วย login จริง การจัดการผู้ใช้ และการตรวจสิทธิ์ที่ฝั่งเซิร์ฟเวอร์
-
-### REQ-ROLE-002 เมนูกำหนดสิทธิ์รายเมนู
-**เมื่อ** ผู้ดูแลระบบต้องปรับสิทธิ์ของทีม **ผู้ใช้ต้อง** กำหนดได้ว่าแต่ละทีมเห็นเมนูใด และเข้าถึงแบบอ่านอย่างเดียวหรือแก้ไขได้
-
-**เกณฑ์ยอมรับ**
-- ระดับสิทธิ์ต่อหนึ่งทีมต่อหนึ่งเมนูมี 3 ค่า: `ซ่อน`, `อ่าน`, `แก้ไข`
-- ค่าตั้งต้นของทุกทีมต้องตรงกับตารางสิทธิ์ใน `REQ-ROLE-001`
-- เมนูที่ตั้งเป็น `ซ่อน` ต้องไม่ปรากฏใน navigation ของทีมนั้น
-- เมนูที่ตั้งเป็น `อ่าน` ต้องแสดงข้อมูลได้แต่แก้ไขไม่ได้ และต้องบอกผู้ใช้ว่าทำไมแก้ไม่ได้
-- เปลี่ยนค่าแล้วมีผลทันทีโดยไม่ต้องโหลดหน้าใหม่ และค่าที่ปรับต้องคงอยู่เมื่อกลับเข้ามาใหม่
-- ต้องคืนค่ากลับเป็นค่าตั้งต้นตาม `REQ-ROLE-001` ได้
-- เฉพาะบทบาท `ผู้ดูแลระบบ` เท่านั้นที่ปรับตารางนี้ได้
-
-หมายเหตุ: ข้อกำหนดนี้ปรับสิทธิ์ระดับ **เมนู** เท่านั้น ยังไม่ลงลึกถึงระดับ field
-สิทธิ์รายการกระทำที่ละเอียดกว่านั้นยังยึดตาม `REQ-ROLE-001`
-
-## ยังไม่อยู่ในเฟสนี้
-- ดึงงานจากธนาคารอัตโนมัติด้วย API หรือ RPA ในขั้นตอนทีม A
-- ส่งผลกลับธนาคารอัตโนมัติด้วย API หรือ RPA ในขั้นตอนทีม C ดู `REQ-INTEGRATION-001`
-- การแจ้งเตือนข้ามทีมเมื่อมีการมอบหมาย ส่งต่อ หรือตีกลับ
-- SLA และการเตือนงานที่เกินกำหนดส่ง
+Automated bank intake/delivery, cross-team notifications, and bank-specific SLA/overdue alerts are not implemented.

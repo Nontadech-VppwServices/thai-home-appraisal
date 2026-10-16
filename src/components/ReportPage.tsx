@@ -4,18 +4,21 @@ import { Printer } from "lucide-react";
 import Image from "next/image";
 import { useSyncExternalStore } from "react";
 import { canView } from "@/domain/access";
+import { drawingLabels } from "@/domain/drawings";
 import { calculateValuation, formatMoney, formatNumber, type AppraisalJob } from "@/domain/appraisal";
 import { sourceLabels, summarizePriceReferences, unitLabels, type PriceReferenceSnapshot } from "@/domain/priceReferences";
 import { getJob, getSelectedPriceReferences, subscribeToJobs } from "@/infrastructure/storage/appraisalStore";
 import { AccessBanner, Button, EmptyState, LinkButton, PageHeader, StatusBadge, Stepper } from "./ui";
 import { useAccess } from "./useAccess";
 import { JobContext } from "./JobContext";
+import { DrawingArtwork } from "./drawings/DrawingArtwork";
 
 const UNSET = "ยังไม่ระบุ";
 const appraisalSteps = [
   { section: "workflow", label: "ข้อมูลงาน" },
   { section: "property", label: "ทรัพย์สิน" },
   { section: "photos", label: "รูปถ่าย" },
+  { section: "drawings", label: "แบบแปลง" },
   { section: "references", label: "ข้อมูลอ้างอิง" },
   { section: "valuation", label: "ประเมินราคา" },
   { section: "report", label: "รายงาน" },
@@ -43,6 +46,7 @@ export function ReportPage({ jobId }: { jobId: string }) {
   const valuation = calculateValuation(job.property, job.valuation);
   const references = getSelectedPriceReferences(job);
   const referenceSummaries = summarizePriceReferences(references);
+  const reportDrawings = job.drawings.filter((drawing) => drawing.includeInReport);
 
   return (
     <>
@@ -107,6 +111,15 @@ export function ReportPage({ jobId }: { jobId: string }) {
           <ReportField label="ที่อยู่" value={job.property.address} wide />
           <ReportField label="รายละเอียดเพิ่มเติม" value={job.property.description} wide />
         </dl>
+
+        {reportDrawings.length > 0 ? <section className="report-line border-t pt-5">
+          <h2 className="text-lg font-bold">แบบแปลงประกอบงานประเมิน</h2>
+          <p className="report-muted text-xs">แผนผังเพื่อสื่อความหมาย ไม่มีสเกลและไม่ใช่แบบรังวัดหรือแบบวิศวกรรม</p>
+          <div className="mt-4 grid gap-5">{reportDrawings.map((drawing) => <figure className="report-drawing break-inside-avoid" key={drawing.id}>
+            <figcaption className="mb-2 text-sm font-semibold">{drawing.title} · {drawingLabels[drawing.type]}</figcaption>
+            <DrawingArtwork className="aspect-[10/7] w-full border border-line bg-white" drawing={drawing} />
+          </figure>)}</div>
+        </section> : null}
 
         <section className="report-line border-t pt-5">
           <h2 className="text-lg font-bold">ข้อมูลอ้างอิงราคา</h2>

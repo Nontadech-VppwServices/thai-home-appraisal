@@ -21,6 +21,7 @@ export type MenuKey =
   | "workflow"
   | "property"
   | "photos"
+  | "drawings"
   | "references"
   | "valuation"
   | "report"
@@ -46,7 +47,7 @@ export const teamProfiles: Record<Team, { label: string; short: string; duty: st
     label: "ทีม B",
     short: "B",
     duty: "ลงพื้นที่ประเมินบ้านจริงตามข้อมูลของทีม A",
-    scope: "แก้ข้อมูลทรัพย์ รูปถ่าย ข้อมูลอ้างอิง และราคาได้ ส่วนข้อมูลจากทีม A อ่านได้อย่างเดียว",
+    scope: "แก้ข้อมูลทรัพย์ รูปถ่าย แบบแปลง ข้อมูลอ้างอิง และราคาได้ ส่วนข้อมูลจากทีม A อ่านได้อย่างเดียว",
   },
   teamC: {
     label: "ทีม C",
@@ -80,6 +81,7 @@ export const menuCatalog: MenuEntry[] = [
   { key: "workflow", label: "ข้อมูลงาน", segment: "workflow" },
   { key: "property", label: "ทรัพย์สิน", segment: "property" },
   { key: "photos", label: "รูปถ่าย", segment: "photos" },
+  { key: "drawings", label: "แบบแปลง", segment: "drawings" },
   { key: "references", label: "ข้อมูลอ้างอิงราคา", segment: "references" },
   { key: "valuation", label: "ประเมินราคา", segment: "valuation" },
   { key: "report", label: "รายงาน", segment: "report" },
@@ -100,6 +102,7 @@ export const defaultMatrix: PermissionMatrix = {
     workflow: "edit",
     property: "read",
     photos: "read",
+    drawings: "read",
     references: "read",
     valuation: "read",
     report: "read",
@@ -120,6 +123,7 @@ export const defaultMatrix: PermissionMatrix = {
     workflow: "read",
     property: "edit",
     photos: "edit",
+    drawings: "edit",
     references: "edit",
     valuation: "edit",
     report: "read",
@@ -139,6 +143,7 @@ export const defaultMatrix: PermissionMatrix = {
     workflow: "read",
     property: "read",
     photos: "read",
+    drawings: "read",
     references: "read",
     valuation: "read",
     report: "read",
@@ -157,6 +162,7 @@ export const defaultMatrix: PermissionMatrix = {
     workflow: "edit",
     property: "edit",
     photos: "edit",
+    drawings: "edit",
     references: "edit",
     valuation: "edit",
     report: "edit",

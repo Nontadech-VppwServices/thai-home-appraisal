@@ -1,48 +1,19 @@
-# Requirement: ระบบบันทึกการประเมินราคาบ้าน
+# Requirements Index
 
-เวอร์ชันเอกสาร: `0.8.0`
-สถานะ: prototype Next.js สำหรับ MVP  
-วันที่ปรับปรุง: 2026-08-29
+Version: `0.10.0` · Status: Next.js browser-local prototype · Updated: 2026-09-23
 
-## เป้าหมาย
-ระบบช่วยผู้ประเมินบันทึกข้อมูลงานประเมินบ้าน ข้อมูลที่ตั้ง รูปถ่าย วิธีคำนวณ และผลราคาให้อยู่ในงานเดียว พร้อมเตรียมข้อมูลสำหรับตรวจสอบและส่งต่อธนาคาร
+Requirements are the source of truth for business behavior. Use `REQ-<DOMAIN>-###` identifiers and update [traceability](traceability.md) when behavior changes. Read only the domain relevant to the task:
 
-## ขอบเขต prototype รุ่นนี้
-- แบบฟอร์มข้อมูลผู้ว่าจ้าง ธนาคาร ที่อยู่ พิกัด ประเภทบ้าน สภาพ พื้นที่ และรายละเอียด
-- เพิ่มรูปถ่ายหลักฐานจากเครื่องที่ใช้งาน
-- ค้น เลือก และเก็บ snapshot ข้อมูลอ้างอิงราคาจากภาครัฐ ตลาด และงานเดิมในเครื่อง
-- ประเมินแบบกรอกราคาเอง ราคาต่อตารางเมตร หรือราคาจากทรัพย์เปรียบเทียบ
-- บันทึกอัตโนมัติในเบราว์เซอร์ด้วย `localStorage`
-- พิมพ์หรือบันทึกเป็น PDF ผ่านระบบพิมพ์ของเบราว์เซอร์
-- มี UI ครบทั้งสายงานรับงาน ประเมิน ตรวจสอบ ส่งออก ส่งมอบ integration simulation และ security posture
-- จำลองบทบาททีม A/B/C และผู้ดูแลระบบเพื่อ demo ผ่านหน้า `/login` แบบข้ามการยืนยันตัวตน พร้อมหน้า `/permissions` ปรับสิทธิ์รายเมนู (ยังไม่ใช่ระบบสิทธิ์จริง ดู `REQ-ROLE-001`)
-- จำลองสายงาน 3 ทีมตั้งแต่รับงาน มอบหมาย ประเมิน ตีกลับ และบันทึกการส่ง โดยเก็บสถานะและประวัติใน `localStorage`
+| Responsibility | Document |
+|---|---|
+| Job creation, persistence, property, photos | [Jobs and property](job-and-property.md) |
+| Drawing editor, house plans, sketch import | [Drawings](drawings.md) |
+| Valuation and printable report | [Valuation and report](valuation-and-report.md) |
+| Team A/B/C lifecycle and permissions | [Pipeline and roles](pipeline.md) |
+| Price evidence and snapshots | [References](references.md) |
+| Administrator reporting | [Insights](insights.md) |
+| Review, generic export, simulated API, security page | [Demo surfaces](demo-surfaces.md) |
 
-## ยังไม่อยู่ใน prototype
-- การเข้าสู่ระบบและกำหนดสิทธิ์หลายคน รวมถึงบทบาททีม A/B/C
-- การมอบหมายและ audit log ที่อ้างถึงบัญชีผู้ใช้จริงหรือบังคับสิทธิ์ฝั่งเซิร์ฟเวอร์
-- ฐานข้อมูลกลาง การซิงค์ข้ามอุปกรณ์ และการทำงาน offline
-- การตรวจสอบ/อนุมัติโดยผู้ตรวจสอบจริง
-- การส่งไฟล์หรือ API ไปธนาคารจริง
-- ลายเซ็นดิจิทัล การเข้ารหัส และนโยบายเก็บข้อมูลสำหรับ production
+The prototype stores jobs in one browser, prints through the browser, and simulates roles and bank handoff. It does **not** provide real login, server authorization, central storage, cross-device sync, bank delivery, production audit, encryption, or retention enforcement. Confirm bank schemas and accepted valuation sources, reviewer roles, retention/PDPA, offline and signature needs, and handoff acknowledgements before production. See [production targets](../production-targets.md) for technical decisions.
 
-## รหัส requirement
-ใช้รูปแบบ `REQ-<DOMAIN>-###` เช่น `REQ-PROPERTY-001` โดยทุกข้อควรมีพฤติกรรมที่ตรวจสอบได้
-
-## เอกสารที่เกี่ยวข้อง
-- [MVP requirements](mvp.md)
-- [สายงาน 3 ทีม (A → B → C)](pipeline.md)
-- [ข้อมูลอ้างอิงราคา](references.md)
-- [รายงานภาพรวมสำหรับผู้ดูแลระบบ](insights.md)
-- [Traceability](traceability.md)
-- [Changelog](CHANGELOG.md)
-- [Architecture and Stack](../architecture-stack.md)
-- [Design System and CI](../design-and-ci.md)
-
-## คำถามที่ต้องยืนยันก่อน production
-1. ธนาคารแต่ละแห่งต้องการแบบฟอร์มและช่องข้อมูลใดบ้าง
-2. สูตร ราคากลาง และแหล่งข้อมูลที่ยอมรับในการประเมินคืออะไร
-3. ผู้ตรวจสอบและผู้อนุมัติมีบทบาท/สิทธิ์อย่างไร และแมปกับบทบาททีม A/B/C อย่างไร
-4. ต้องเก็บข้อมูลและรูปถ่ายนานเท่าใด รวมถึงแนวทาง PDPA
-5. ต้องรองรับ offline และลายเซ็นดิจิทัลหรือไม่
-6. ทีม C ส่งงานกลับธนาคารผ่านช่องทางใด และธนาคารตอบกลับด้วยข้อมูลอะไร
+Historical changes are in [CHANGELOG.md](CHANGELOG.md).

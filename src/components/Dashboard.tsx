@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { DraftingCompass, Plus } from "lucide-react";
 import { useSyncExternalStore } from "react";
 import { canEdit } from "@/domain/access";
 import { calculateValuation, formatMoney, type AppraisalJob } from "@/domain/appraisal";
@@ -33,6 +33,22 @@ export function Dashboard() {
         eyebrow="งานประเมินทั้งหมด"
         title="รายการงานประเมินในเครื่องนี้"
       />
+
+      <section className="mb-6 overflow-hidden rounded-shell bg-linear-to-br from-[#104c5a] via-[#0f766e] to-[#0b6484] p-5 text-white shadow-raised md:p-7" aria-label="ภาพรวมงานประเมิน">
+        <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-xs font-bold tracking-wide text-teal-100">WORKSPACE</p>
+            <h2 className="mt-2 text-2xl font-extrabold text-white">งานประเมินและแบบแปลงในที่เดียว</h2>
+            <p className="mt-2 max-w-xl text-sm text-teal-50">เปิดงานที่กำลังทำ ดูข้อมูลทรัพย์ และจัดทำแผนผังประกอบจากมือถือได้ทันที</p>
+          </div>
+          {rows[0] ? <LinkButton className="border-white/40 bg-white/10 text-white hover:bg-white/20" href={`/jobs/${rows[0].job.id}/drawings`}><DraftingCompass size={18} />เปิดแบบแปลงงานล่าสุด</LinkButton> : null}
+        </div>
+        <div className="mt-5 grid grid-cols-2 gap-3 border-t border-white/20 pt-4 sm:grid-cols-3">
+          <div><div className="text-2xl font-extrabold text-white">{rows.length}</div><div className="text-xs text-teal-100">งานทั้งหมด</div></div>
+          <div><div className="text-2xl font-extrabold text-white">{rows.filter(({ job }) => job.status !== "submitted").length}</div><div className="text-xs text-teal-100">งานที่กำลังดำเนินการ</div></div>
+          <div className="col-span-2 sm:col-span-1"><div className="text-2xl font-extrabold text-white">{rows.reduce((count, { job }) => count + job.drawings.length, 0)}</div><div className="text-xs text-teal-100">แบบแปลงที่บันทึก</div></div>
+        </div>
+      </section>
 
       {rows.length === 0 ? (
         <EmptyState
