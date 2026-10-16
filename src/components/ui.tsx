@@ -22,7 +22,7 @@ const buttonBase =
 
 const buttonSizes: Record<ButtonSize, string> = {
   md: "min-h-11 px-4 text-sm",
-  sm: "min-h-9 px-3 text-xs",
+  sm: "min-h-11 px-3 text-xs sm:min-h-9",
 };
 
 const buttonVariants: Record<ButtonVariant, string> = {
@@ -77,7 +77,7 @@ export function LinkButton({
 
 const controlBase =
   "w-full min-h-11 rounded-control border border-line-strong bg-surface text-ink " +
-  "px-3.5 py-2.5 text-sm leading-relaxed transition-colors duration-150 " +
+  "px-3.5 py-2.5 text-base leading-relaxed transition-colors duration-150 sm:text-sm " +
   "placeholder:text-faint hover:border-line-strong " +
   "focus:border-action focus:outline-none focus:ring-4 focus:ring-action/15 " +
   "disabled:cursor-not-allowed disabled:bg-surface-2 disabled:opacity-70";
@@ -208,7 +208,7 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <header className="mb-6 flex flex-col gap-4 lg:mb-8 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+    <header className="app-page-header mb-6 flex flex-col gap-4 rounded-shell border border-line p-5 shadow-panel lg:mb-8 lg:flex-row lg:items-start lg:justify-between lg:gap-8 lg:p-7">
       <div className="min-w-0">
         {eyebrow ? (
           <p className="mb-1.5 text-xs font-bold tracking-wide text-accent break-hard">{eyebrow}</p>

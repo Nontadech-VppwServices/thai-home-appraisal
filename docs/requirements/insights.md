@@ -1,102 +1,35 @@
-# Requirement: รายงานภาพรวมสำหรับผู้ดูแลระบบ
+# Administrator Insights
 
-ฟีเจอร์นี้ให้ผู้ดูแลระบบเห็นภาพรวมการทำงานของทีม A/B/C ในที่เดียว เพื่อตอบสี่คำถามหลัก: งานค้างอยู่ที่ขั้นตอนไหน ขั้นตอนไหนช้ากว่าที่ควร หนึ่งใบงานใช้เวลากี่วัน และแต่ละทีมจะเคลียร์งานค้างหมดเมื่อไร ตัวเลขทุกตัวคำนวณจาก `statusHistory` ของงานตาม `REQ-PIPELINE-005` ระบบรายงานผลอย่างเดียว ไม่แก้ไขงานและไม่เปลี่ยนสถานะงานใด ๆ
+This read-only, browser-local report uses job `statusHistory` to show current backlog, bottlenecks, job duration, and Team B workload. It does not modify jobs. Timeliness targets are illustrative, not bank SLAs.
 
-## REQ-INSIGHT-001 หน้ารายงานเฉพาะผู้ดูแลระบบ
+## REQ-INSIGHT-001 Restrict the insights page
 
-**เมื่อ** ผู้ดูแลระบบเข้าสู่ระบบ **ระบบต้อง** แสดงเมนูรายงานภาพรวมและเปิดหน้า `/insights` ได้
+The administrator demo role can open `/insights`; Teams A/B/C default to a hidden menu. Direct access without permission shows an explanation rather than a blank page. The report has no job-editing actions. `/permissions` can adjust the demo menu setting. This is not server authorization.
 
-**เกณฑ์ยอมรับ**
-- เฉพาะผู้ดูแลระบบเห็นเมนูนี้ ทีม A/B/C มีสิทธิ์เป็น `ซ่อน` ตามตารางใน `REQ-ROLE-001`
-- ผู้ที่ไม่มีสิทธิ์และเปิด URL ตรงต้องเห็นคำอธิบายว่าเมนูนี้เป็นของผู้ดูแลระบบ ไม่ใช่หน้าว่างหรือ error
-- รายงานอ่านข้อมูลอย่างเดียว ไม่มีปุ่มแก้ไขงานหรือเปลี่ยนสถานะในหน้านี้
-- ระดับสิทธิ์ปรับได้จากหน้า `/permissions` ตาม `REQ-ROLE-002`
+## REQ-INSIGHT-002 Filter by time
 
-## REQ-INSIGHT-002 ตัวกรองช่วงเวลา
+Offer today, trailing 7 days, trailing 30 days, trailing 12 months, and an inclusive custom date range. Presets are rolling windows, not calendar periods. Incomplete or reversed custom ranges show a warning rather than silently changing results. Choose daily/weekly/monthly trend buckets by range length and display the chosen granularity. The prototype does not persist this filter across page loads.
 
-**เมื่อ** ผู้ดูแลระบบเปิดรายงาน **ผู้ใช้ต้อง** เลือกช่วงเวลาแบบสำเร็จรูปหรือกำหนดวันเริ่มและวันสิ้นสุดเองได้
+## REQ-INSIGHT-003 Summarize work
 
-**เกณฑ์ยอมรับ**
-- มีตัวเลือก `วันนี้`, `7 วัน`, `30 วัน`, `12 เดือน` และ `กำหนดเอง`
-- ตัวเลือกสำเร็จรูปทุกตัวเป็นช่วงย้อนหลังนับถึงวันนี้ ไม่ใช่เดือนหรือปีปฏิทิน เพราะช่วงย้อนหลังมีข้อมูลเสมอ
-- ช่วงกำหนดเองรวมวันเริ่มและวันสิ้นสุดทั้งสองข้าง
-- เมื่อกรอกช่วงกำหนดเองไม่ครบหรือกลับด้าน ระบบต้องแจ้งให้ผู้ใช้เห็น ไม่เปลี่ยนตัวเลขเงียบ ๆ
-- ระบบเลือกขนาดกลุ่มของกราฟแนวโน้มเองตามความยาวช่วง (รายวัน / รายสัปดาห์ / รายเดือน) และแสดงให้ผู้ใช้ทราบว่าใช้ขนาดใดอยู่
-- ค่าที่เลือกไม่ถูกบันทึกข้ามการเปิดหน้าใหม่ใน prototype รุ่นนี้
+Show incoming and closed jobs, closed-job value, current backlog, on-time rate, and return rate, plus an incoming-versus-closed trend. Incoming uses receipt date; closed uses the transition to `submitted`. Value covers jobs closed in the selected period. On-time rate excludes jobs without due dates and shows its denominator; return rate uses incoming jobs as its denominator. Current backlog is not filtered by the selected period.
 
-## REQ-INSIGHT-003 ตัวเลขสรุปภาพรวม
+## REQ-INSIGHT-004 Locate backlog
 
-**เมื่อ** เลือกช่วงเวลาแล้ว **ระบบต้อง** แสดงตัวเลขสรุปของช่วงนั้นพร้อมกราฟแนวโน้มงานเข้าเทียบงานปิด
+Show current open jobs by status and owning team, with average and oldest age per stage. Highlight overdue, inactive, and longest-open jobs, showing a bounded list and total count. Editing activity prevents a job from being marked inactive even when status does not change. Current backlog remains independent of the date filter.
 
-**เกณฑ์ยอมรับ**
-- แสดงจำนวนงานเข้า จำนวนงานปิด มูลค่างานที่ปิด จำนวนงานค้างทั้งหมด อัตราส่งตรงเวลา และอัตรางานที่ถูกตีกลับ
-- `งานเข้า` นับจากวันที่รับงาน ส่วน `งานปิด` นับจากเวลาที่เข้าสถานะ `ส่งธนาคารแล้ว` ต้องระบุนิยามทั้งสองให้ผู้อ่านเห็น
-- มูลค่าที่แสดงเป็นมูลค่าของงานที่ปิดในช่วง ไม่ใช่งานที่รับเข้ามา
-- อัตราส่งตรงเวลาไม่นับงานที่ไม่ได้กำหนดวันส่ง และต้องแสดงจำนวนงานที่ใช้เป็นฐานคำนวณ
-- อัตรางานที่ถูกตีกลับใช้ฐานเป็นงานเข้าในช่วง ต่างจากอัตราส่งตรงเวลาที่ใช้ฐานเป็นงานปิด จึงต้องกำกับฐานของแต่ละค่าไว้
-- จำนวนงานค้างเป็นค่า ณ ปัจจุบัน ไม่ผูกกับช่วงเวลาที่เลือก
+## REQ-INSIGHT-005 Measure stage and job duration
 
-## REQ-INSIGHT-004 งานค้างอยู่ที่ไหน
+Show mean, median, p90, and sample count in days for each stage; identify the largest-median bottleneck. For complete jobs, show mean, median, p90, fastest, slowest, and duration distribution from receipt to submission. Repeated stages after returns count as separate intervals. Open intervals run through the end of today and are labeled lower bounds. Stage targets and stale-job thresholds are unvalidated assumptions, not bank SLAs. Stage durations can include open intervals ending inside the selected range; Team B performance counts completed intervals only, so totals intentionally differ.
 
-**เมื่อ** มีงานที่ยังไม่ปิด **ระบบต้อง** แสดงว่างานค้างอยู่ที่ขั้นตอนใด ทีมใดถืออยู่ และค้างมานานเท่าไร
+## REQ-INSIGHT-006 Seed demo data
 
-**เกณฑ์ยอมรับ**
-- แยกจำนวนงานค้างตามสถานะ พร้อมทีมเจ้าของขั้นตอนตามตารางใน `pipeline.md`
-- แต่ละขั้นตอนแสดงอายุเฉลี่ยและอายุของงานที่เก่าที่สุด
-- มีรายการงานที่เลยกำหนดส่ง งานที่ไม่มีความเคลื่อนไหวเกินเกณฑ์ และงานที่เปิดค้างนานที่สุด
-- งานที่ทีมยังแก้ข้อมูลอยู่ไม่ถือว่าไม่มีความเคลื่อนไหว แม้สถานะจะไม่เปลี่ยน
-- รายการงานแสดงเฉพาะรายการแรก ๆ พร้อมบอกจำนวนทั้งหมด เพื่อไม่ให้หน้ายาวเกินอ่าน
-- งานค้างเป็นค่า ณ ปัจจุบันเสมอ ไม่ถูกกรองด้วยช่วงเวลาที่เลือก เพราะคำถามคือ “ตอนนี้ค้างที่ไหน”
+On first view without demo jobs, seed deterministic examples automatically and default to 12 months. A real job must not suppress seeding; seeding is independent of demo role so the page is not empty. Demo IDs start with `demo-` and coexist with real jobs. Remember that seeding occurred so a later user-initiated clear does not refill data. Mark demo data clearly and explain removal according to current permissions. Only the administrator demo role can load or clear manually; clearing requires confirmation and removes only demo jobs. Reloading uses the same IDs rather than creating duplicates. Seed data covers closed, open, and returned jobs with status history. Report browser quota failures.
 
-## REQ-INSIGHT-005 ขั้นตอนไหนช้า และหนึ่งใบงานใช้เวลากี่วัน
+## REQ-INSIGHT-007 Summarize appraisers
 
-**เมื่อ** มีงานที่ผ่านขั้นตอนใดขั้นตอนหนึ่งในช่วงที่เลือก **ระบบต้อง** แสดงเวลาที่ใช้ต่อขั้นตอนและเวลารวมต่อหนึ่งใบงาน
+For each Team B appraiser, show current assigned workload, overdue workload, jobs closed in range, completed work intervals, and mean interval duration with sample count. Jobs handed to Team C are not Team B workload. Completed intervals across appraisers must total Team B's completed intervals. Group jobs without an appraiser as one `ยังไม่ระบุผู้ประเมิน` row. Use this for workload/bottleneck analysis, not individual performance appraisal.
 
-**เกณฑ์ยอมรับ**
-- แต่ละขั้นตอนแสดงค่าเฉลี่ย ค่ากลาง และ p90 เป็นวัน พร้อมจำนวนช่วงที่ใช้คำนวณ
-- ระบบชี้ขั้นตอนที่เป็นคอขวด โดยใช้ค่ากลางสูงสุดเป็นเกณฑ์
-- เวลาต่อหนึ่งใบงานนับจากวันรับงานถึงเวลาที่ส่งธนาคาร แสดงทั้งค่าเฉลี่ย ค่ากลาง p90 เร็วสุด ช้าสุด และการกระจายเป็นช่วงวัน
-- งานที่ถูกตีกลับเข้าขั้นตอนเดิมซ้ำ ต้องนับเป็นสองช่วงเวลาแยกกัน ไม่ยุบรวม
-- ช่วงที่ยังไม่จบถูกนับถึงสิ้นวันปัจจุบัน และต้องระบุว่าค่าที่ได้เป็นค่าต่ำกว่าความจริง
-- เป้าเวลาต่อขั้นตอนและเกณฑ์ “ค้างนาน” เป็น **ค่าสมมติที่ยังไม่ได้ยืนยันกับผู้ใช้งานจริง** และไม่ใช่ SLA ของธนาคาร ทุกหน้าจอที่ใช้ค่านี้ต้องแจ้งผู้อ่านให้ชัด
-- ตารางเวลาต่อขั้นตอนนับช่วงที่ยังไม่จบด้วยเมื่อวันนี้อยู่ในช่วงที่เลือก ส่วนตารางผลงานรายทีมนับเฉพาะช่วงที่จบแล้ว ตัวเลขสองตารางจึงไม่เท่ากันโดยตั้งใจ และต้องกำกับไว้
+## Prototype limits
 
-## REQ-INSIGHT-006 ข้อมูลตัวอย่างสำหรับ demo
-
-**เมื่อ** ผู้ใช้เปิดหน้ารายงานบนเบราว์เซอร์ที่ยังไม่มีข้อมูลตัวอย่าง **ระบบต้อง** โหลดข้อมูลตัวอย่างให้เองโดยไม่ต้องกดปุ่ม และผู้ดูแลระบบต้องโหลดซ้ำหรือล้างทิ้งได้
-
-**เกณฑ์ยอมรับ**
-- เปิดครั้งแรกบนเบราว์เซอร์ที่ยังไม่มีงานตัวอย่าง ระบบโหลดให้อัตโนมัติ และตั้งช่วงเวลาเริ่มต้นเป็น 12 เดือนให้ครอบคลุมข้อมูล
-- เงื่อนไขคือ "ยังไม่มีงานตัวอย่าง" ไม่ใช่ "ไม่มีงานเลย" งานจริงเพียงใบเดียวต้องไม่ทำให้หน้ารายงานว่างเปล่า
-- การโหลดอัตโนมัติไม่ผูกกับสิทธิ์ เพราะเป็นการเตรียมข้อมูล demo ไม่ใช่การแก้งานจริง มิฉะนั้นทีมที่ไม่มีสิทธิ์จะเปิดมาเจอหน้าเปล่าโดยไม่มีอะไรให้ดู
-- งานตัวอย่างใช้รหัสขึ้นต้น `demo-` จึงอยู่ร่วมกับงานจริงได้โดยไม่ทับกัน และการล้างต้องลบเฉพาะงานตัวอย่าง
-- ระบบจำว่าเคยโหลดในเบราว์เซอร์นี้แล้ว เมื่อผู้ใช้กดล้างต้องไม่โหลดกลับมาเองอีก แม้เปิดหน้าใหม่
-- เมื่อมีข้อมูลตัวอย่างอยู่ ต้องแจ้งบนหน้าให้ชัดว่าเป็นข้อมูล demo ไม่ใช่งานจริง และบอกวิธีเอาออกตามสิทธิ์ของผู้ที่กำลังดู
-- ปุ่มโหลดและล้างยังเป็นของผู้ดูแลระบบเท่านั้นตาม `REQ-INSIGHT-001`
-- ข้อมูลตัวอย่างถูกสร้างจาก seed คงที่ ผลลัพธ์จึงซ้ำเดิมทุกครั้ง
-- งานตัวอย่างแยกออกจากงานจริงได้ด้วยรหัสงาน และการล้างต้องไม่ลบงานจริง
-- ต้องยืนยันก่อนล้างข้อมูลตัวอย่าง
-- งานตัวอย่างมีประวัติสถานะครบ ทั้งงานปิด งานค้าง และงานที่ถูกตีกลับ เพื่อให้ทุกส่วนของรายงานมีข้อมูลให้ดู
-- โหลดซ้ำเป็นการเขียนทับรหัสเดิม ไม่สร้างงานซ้ำซ้อน
-- ต้องแจ้งผู้ใช้เมื่อพื้นที่เก็บข้อมูลในเบราว์เซอร์ไม่พอ แทนที่จะล้มเงียบ
-- ข้อมูลตัวอย่างมีไว้เพื่อ demo เท่านั้น และต้องไม่มีในระบบ production
-
-## REQ-INSIGHT-007 สรุปรายผู้ประเมิน
-
-**เมื่อ** มีงานที่ระบุผู้ประเมินของทีม B **ระบบต้อง** สรุปภาระงานและความเร็วรายคนได้
-
-**เกณฑ์ยอมรับ**
-- แต่ละคนแสดงงานในมือ งานในมือที่เลยกำหนด งานที่ปิดในช่วง จำนวนช่วงงานที่ทำจบ และเวลาเฉลี่ยต่อช่วงงาน
-- `งานในมือ` นับเฉพาะงานที่อยู่ในขั้นตอนของทีม B ตอนนี้ งานที่ส่งต่อให้ทีม C แล้วเป็นคิวของทีม C ไม่ใช่ภาระของผู้ประเมิน
-- ผลรวมช่วงงานที่ทำจบของทุกคน ต้องเท่ากับจำนวนช่วงงานที่ทีม B ทำจบในช่วงเดียวกัน
-- งานที่ยังไม่ระบุผู้ประเมินรวมเป็นแถวเดียวชื่อ `ยังไม่ระบุผู้ประเมิน`
-- ค่าเฉลี่ยต้องแสดงคู่กับจำนวนงานที่ใช้คำนวณเสมอ
-- ตัวเลขนี้ใช้ดูภาระงานและหาคอขวด ไม่ใช่เกณฑ์ประเมินผลบุคคล
-
-## ข้อจำกัดของ prototype
-
-- ข้อมูลอ่านจาก `localStorage` ของเครื่องที่ใช้งาน รายงานจึงเห็นเฉพาะงานในเครื่องนั้น ไม่ใช่ภาพรวมทั้งบริษัท
-- สิทธิ์ยังบังคับฝั่ง client เท่านั้นตามข้อจำกัดของ `REQ-ROLE-001` การเปิด `/insights` จึงยังไม่ถูกกันจากฝั่งเซิร์ฟเวอร์
-- ยังไม่มี UI เปลี่ยนสถานะงานตาม `REQ-PIPELINE-005` งานที่สร้างจริงจึงค้างที่ `รอมอบหมาย` และรายงานจะมีความหมายกับข้อมูลตัวอย่างตาม `REQ-INSIGHT-006` เป็นหลัก
-- เป้าเวลาต่อขั้นตอนและเกณฑ์ค้างนานยังเป็นค่าสมมติ ต้องยืนยันกับผู้ใช้งานจริงและแยกตามธนาคารก่อนใช้เป็น SLA
-- ยังไม่มีการส่งออกรายงานเป็นไฟล์ และยังไม่มีการแจ้งเตือนเมื่องานเลยกำหนด
+The report sees only jobs in the current browser. Demo permissions do not restrict server access. Targets remain unvalidated, and there is no file export or overdue notification. Real jobs may show limited history until the user progresses through the workflow.

@@ -1,4 +1,5 @@
 import type { Team } from "./access";
+import { normalizeDrawings, type DrawingDocument } from "./drawings";
 import { normalizeSelectedReferences, type SelectedPriceReference } from "./priceReferences";
 
 /**
@@ -127,6 +128,7 @@ export type AppraisalJob = {
   workflow: WorkflowInfo;
   property: PropertyInfo;
   photos: PhotoEvidence[];
+  drawings: DrawingDocument[];
   valuation: ValuationInput;
   /** ความสัมพันธ์ไปยัง snapshot ในคลังราคา พร้อมเหตุผลที่ทีม B เลือก */
   selectedReferences: SelectedPriceReference[];
@@ -202,6 +204,7 @@ export function createEmptyJob(id: string, today: string): AppraisalJob {
       description: "",
     },
     photos: [],
+    drawings: [],
     valuation: {
       method: "manual",
       manualPrice: 0,
@@ -249,6 +252,7 @@ export function normalizeStoredJob(raw: unknown, fallbackToday: string): Apprais
     workflow: { ...base.workflow, ...(asRecord(raw.workflow) as Partial<WorkflowInfo>) },
     property: { ...base.property, ...(asRecord(raw.property) as Partial<PropertyInfo>) },
     photos: Array.isArray(raw.photos) ? (raw.photos as PhotoEvidence[]) : base.photos,
+    drawings: normalizeDrawings(raw.drawings),
     valuation: { ...base.valuation, ...(asRecord(raw.valuation) as Partial<ValuationInput>) },
     selectedReferences: normalizeSelectedReferences(raw.selectedReferences),
     checks: normalizeChecklistState(raw.checks) ?? base.checks,

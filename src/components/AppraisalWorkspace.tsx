@@ -51,10 +51,11 @@ type Section = "workflow" | "property" | "photos" | "valuation";
 
 const MAX_PHOTOS = 12;
 
-const steps: { section: Section | "references" | "report"; label: string }[] = [
+const steps: { section: Section | "drawings" | "references" | "report"; label: string }[] = [
   { section: "workflow", label: "ข้อมูลงาน" },
   { section: "property", label: "ทรัพย์สิน" },
   { section: "photos", label: "รูปถ่าย" },
+  { section: "drawings", label: "แบบแปลง" },
   { section: "references", label: "ข้อมูลอ้างอิง" },
   { section: "valuation", label: "ประเมินราคา" },
   { section: "report", label: "รายงาน" },

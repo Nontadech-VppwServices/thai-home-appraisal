@@ -24,23 +24,26 @@ import {
   type PriceReferenceSnapshot,
 } from "@/domain/priceReferences";
 import type { Team } from "@/domain/access";
+import { normalizeDrawings, type DrawingDocument } from "@/domain/drawings";
 
 const STORAGE_KEY = "thaiHomeAppraisals:v1";
 const LEGACY_STORAGE_KEY = "thaiHomeAppraisal";
 const STORE_EVENT = "thai-home-appraisal-store-change";
 const DEMO_SEED_KEY = "thaiHomeDemoSeeded:v1";
+const CURRENT_STORE_SCHEMA = 2;
 
 type StoredJobs = Record<string, AppraisalJob>;
 type StoredReferences = Record<string, PriceReferenceSnapshot>;
 
 type StoredState = {
+  schemaVersion: number;
   jobs: StoredJobs;
   references: StoredReferences;
   currentJobId: string | null;
   activities: DemoActivity[];
 };
 
-const emptyState: StoredState = { jobs: {}, references: {}, currentJobId: null, activities: [] };
+const emptyState: StoredState = { schemaVersion: CURRENT_STORE_SCHEMA, jobs: {}, references: {}, currentJobId: null, activities: [] };
 let cachedRawValue: string | null = null;
 let cachedStateValue: StoredState = emptyState;
 let cachedListState: StoredState | null = null;
@@ -304,6 +307,32 @@ export function saveJob(job: AppraisalJob): void {
   writeState({ ...state, jobs: { ...state.jobs, [job.id]: nextJob }, currentJobId: job.id });
 }
 
+/** Update one diagram against the latest stored job so parallel pages do not replace other fields. */
+export function saveDrawing(jobId: string, drawing: DrawingDocument): void {
+  const state = readState();
+  const job = state.jobs[jobId];
+  if (!job) throw new Error("ไม่พบงานประเมิน");
+  if (job.status !== "assigned" && job.status !== "changesRequested") throw new Error("สถานะงานนี้แก้แบบแปลงไม่ได้");
+  if (drawing.elements.length > 300 || (job.drawings.length >= 100 && !job.drawings.some((item) => item.id === drawing.id))) throw new Error("เกินจำนวนแบบหรือวัตถุที่รองรับ");
+  const at = new Date().toISOString();
+  const normalized = normalizeDrawings([{ ...drawing, updatedAt: at }])[0];
+  if (!normalized || normalized.elements.length !== drawing.elements.length) throw new Error("ข้อมูลแบบแปลงไม่ถูกต้อง");
+  const drawings = job.drawings.some((item) => item.id === normalized.id)
+    ? job.drawings.map((item) => item.id === normalized.id ? normalized : item)
+    : [...job.drawings, normalized];
+  writeState({ ...state, jobs: { ...state.jobs, [jobId]: { ...job, drawings, updatedAt: at } }, currentJobId: jobId });
+}
+
+export function removeDrawing(jobId: string, drawingId: string): void {
+  const state = readState();
+  const job = state.jobs[jobId];
+  if (!job) throw new Error("ไม่พบงานประเมิน");
+  if (job.status !== "assigned" && job.status !== "changesRequested") throw new Error("สถานะงานนี้แก้แบบแปลงไม่ได้");
+  const drawings = job.drawings.filter((item) => item.id !== drawingId);
+  if (drawings.length === job.drawings.length) return;
+  writeState({ ...state, jobs: { ...state.jobs, [jobId]: { ...job, drawings, updatedAt: new Date().toISOString() } }, currentJobId: jobId });
+}
+
 export function removeJob(jobId: string): void {
   const state = readState();
   const jobs = { ...state.jobs };
@@ -360,12 +389,13 @@ function readState(): StoredState {
 }
 
 function writeState(state: StoredState): void {
-  const serialized = JSON.stringify(state);
+  const nextState = { ...state, schemaVersion: CURRENT_STORE_SCHEMA };
+  const serialized = JSON.stringify(nextState);
+  window.localStorage.setItem(STORAGE_KEY, serialized);
   cachedRawValue = serialized;
-  cachedStateValue = state;
+  cachedStateValue = nextState;
   cachedListState = null;
   cachedReferenceState = null;
-  window.localStorage.setItem(STORAGE_KEY, serialized);
   window.dispatchEvent(new Event(STORE_EVENT));
 }
 
@@ -373,7 +403,7 @@ function writeState(state: StoredState): void {
  * แปลงข้อมูลจาก localStorage ให้เป็น AppraisalJob ที่ครบตาม schema ปัจจุบัน
  * ทำที่นี่จุดเดียวเพราะรันครั้งเดียวต่อค่าดิบหนึ่งค่า แล้วผลถูกเก็บใน cachedStateValue
  * ห้ามย้ายไป listJobs/getJob เพราะจะสร้าง object ใหม่ทุกครั้งที่ useSyncExternalStore อ่าน snapshot
- * และห้ามเขียนกลับที่นี่ ค่าที่ซ่อมแล้วจะถูกบันทึกเองตอน save ครั้งถัดไป
+ * การย้าย schema แบบ destructive เขียนกลับครั้งเดียว เพื่อไม่ให้แบบประเภทที่ยกเลิกกลับมาอีก
  */
 function normalizeJobs(raw: unknown): StoredJobs {
   if (typeof raw !== "object" || raw === null) return {};
@@ -399,16 +429,25 @@ function normalizeReferences(raw: unknown): StoredReferences {
 function parseState(value: string): StoredState {
   try {
     const parsed = JSON.parse(value) as StoredState;
-    cachedRawValue = value;
     const jobs = normalizeJobs(parsed.jobs);
     const references = normalizeReferences(parsed.references);
     migrateLegacyComparablePrices(jobs, references);
     cachedStateValue = {
+      schemaVersion: CURRENT_STORE_SCHEMA,
       jobs,
       references,
       currentJobId: parsed.currentJobId ?? null,
       activities: normalizeDemoActivities(parsed.activities),
     };
+    if (parsed.schemaVersion !== CURRENT_STORE_SCHEMA) {
+      const serialized = JSON.stringify(cachedStateValue);
+      try {
+        window.localStorage.setItem(STORAGE_KEY, serialized);
+        cachedRawValue = serialized;
+      } catch {
+        cachedRawValue = value;
+      }
+    } else cachedRawValue = value;
     cachedListState = null;
     cachedReferenceState = null;
     return cachedStateValue;
@@ -468,7 +507,7 @@ function migrateLegacyJob(): StoredState | null {
       dataUrl,
     }));
 
-    const state = { jobs: { [job.id]: job }, references: {}, currentJobId: job.id, activities: [] };
+    const state: StoredState = { schemaVersion: CURRENT_STORE_SCHEMA, jobs: { [job.id]: job }, references: {}, currentJobId: job.id, activities: [] };
     writeState(state);
     return state;
   } catch {

@@ -2,8 +2,10 @@
 
 import {
   ChartColumn,
+  Building2,
   FileText,
   Database,
+  DraftingCompass,
   Home,
   Landmark,
   LockKeyhole,
@@ -34,6 +36,7 @@ const menuIcons: Record<MenuKey, IconType> = {
   workflow: FileText,
   property: Home,
   photos: TableProperties,
+  drawings: DraftingCompass,
   references: Database,
   valuation: Landmark,
   report: ShieldCheck,
@@ -66,7 +69,9 @@ export function Shell({ children }: { children: ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerPath, setDrawerPath] = useState(pathname);
   const menuButton = useRef<HTMLButtonElement>(null);
+  const lastMenuOpener = useRef<HTMLButtonElement | null>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   // ปิด drawer เองเมื่อเปลี่ยนหน้า ผู้ใช้มือถือจึงไม่ต้องกดปิดซ้ำ
   // ปรับ state ระหว่าง render ตามที่ React แนะนำ ครอบคลุมทั้งการกดลิงก์และปุ่มย้อนกลับ
@@ -83,13 +88,19 @@ export function Shell({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!drawerOpen) return;
 
-    const opener = menuButton.current;
+    const opener = lastMenuOpener.current ?? menuButton.current;
     closeButton.current?.focus();
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") setDrawerOpen(false);
+      if (event.key !== "Tab" || !dialogRef.current) return;
+      const focusable = [...dialogRef.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled])')];
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
     }
     document.addEventListener("keydown", onKeyDown);
 
@@ -112,19 +123,19 @@ export function Shell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-dvh bg-canvas">
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-surface/85 px-4 backdrop-blur-md lg:hidden print:hidden">
+      <header className="sticky top-0 z-30 flex h-15 items-center gap-3 border-b border-line bg-surface/90 px-4 backdrop-blur-md lg:hidden print:hidden">
         <button
           aria-expanded={drawerOpen}
           aria-label="เปิดเมนู"
-          className="-ml-2 grid size-10 place-items-center rounded-control text-ink-soft transition-colors duration-150 hover:bg-surface-2"
-          onClick={() => setDrawerOpen(true)}
+          className="-ml-2 grid size-11 place-items-center rounded-control text-ink-soft transition-colors duration-150 hover:bg-surface-2"
+          onClick={(event) => { lastMenuOpener.current = event.currentTarget; setDrawerOpen(true); }}
           ref={menuButton}
           type="button"
         >
           <Menu size={20} />
         </button>
-        <Link className="text-lg font-extrabold tracking-tight" href="/">
-          เรือนราคา
+        <Link className="flex items-center gap-2 text-lg font-extrabold tracking-tight" href="/">
+          <span className="grid size-8 place-items-center rounded-lg bg-accent text-white"><Building2 aria-hidden="true" size={17} /></span>เรือนราคา
         </Link>
         <span className="ml-auto rounded-full bg-accent-soft px-2.5 py-1 text-xs font-bold text-accent-ink">
           {teamProfiles[team].label}
@@ -154,12 +165,13 @@ export function Shell({ children }: { children: ReactNode }) {
             aria-modal="true"
             className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col gap-6 overflow-y-auto border-r border-line bg-surface px-4 py-5 shadow-raised"
             role="dialog"
+            ref={dialogRef}
           >
             <div className="flex items-start justify-between gap-3">
               <Brand />
               <button
                 aria-label="ปิดเมนู"
-                className="-mt-1 -mr-1 grid size-10 shrink-0 place-items-center rounded-control text-ink-soft transition-colors duration-150 hover:bg-surface-2"
+                className="-mt-1 -mr-1 grid size-11 shrink-0 place-items-center rounded-control text-ink-soft transition-colors duration-150 hover:bg-surface-2"
                 onClick={() => setDrawerOpen(false)}
                 ref={closeButton}
                 type="button"
@@ -177,19 +189,40 @@ export function Shell({ children }: { children: ReactNode }) {
       ) : null}
 
       <div className="lg:pl-66">
-        <main className="mx-auto w-full max-w-300 px-4 py-6 md:px-6 lg:px-10 lg:py-10 print:max-w-none print:p-0">
+        <main className="mx-auto w-full max-w-300 px-4 pt-6 pb-28 md:px-6 lg:px-10 lg:py-10 print:max-w-none print:p-0">
           {children}
         </main>
       </div>
+      <MobileBottomNav activeJobId={activeJobId} matrix={matrix} onMore={(button) => { lastMenuOpener.current = button; setDrawerOpen(true); }} pathname={pathname} team={team} />
     </div>
   );
 }
 
+function MobileBottomNav({ activeJobId, matrix, onMore, pathname, team }: { activeJobId?: string; matrix: PermissionMatrix; onMore: (button: HTMLButtonElement) => void; pathname: string; team: Team }) {
+  const visible = (key: MenuKey) => canView(matrix[team][key]);
+  const links: NavLink[] = [{ href: "/", label: "งาน", icon: Home }];
+  if (activeJobId) {
+    if (visible("property")) links.push({ href: `/jobs/${activeJobId}/property`, label: "ทรัพย์สิน", icon: Home });
+    if (visible("drawings")) links.push({ href: `/jobs/${activeJobId}/drawings`, label: "แบบแปลง", icon: DraftingCompass });
+    if (visible("report")) links.push({ href: `/jobs/${activeJobId}/report`, label: "รายงาน", icon: FileText });
+  } else {
+    if (visible("newJob")) links.push({ href: "/jobs/new", label: "สร้างงาน", icon: FileText });
+    if (visible("insights")) links.push({ href: "/insights", label: "ภาพรวม", icon: ChartColumn });
+  }
+  return <nav aria-label="เมนูหลักบนมือถือ" className="mobile-bottom-nav lg:hidden print:hidden">
+    {links.map(({ href, label, icon: Icon }) => {
+      const active = href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+      return <Link aria-current={active ? "page" : undefined} className={`mobile-bottom-item ${active ? "mobile-bottom-active" : ""}`} href={href} key={href}><Icon aria-hidden="true" size={21} /><span>{label}</span></Link>;
+    })}
+    <button className="mobile-bottom-item" onClick={(event) => onMore(event.currentTarget)} type="button"><Menu aria-hidden="true" size={21} /><span>เพิ่มเติม</span></button>
+  </nav>;
+}
+
 function Brand() {
   return (
-    <div className="grid gap-1">
-      <Link className="w-fit text-xl font-extrabold tracking-tight" href="/">
-        เรือนราคา
+    <div className="grid gap-2 border-b border-line pb-5">
+      <Link className="flex w-fit items-center gap-2.5 text-xl font-extrabold tracking-tight" href="/">
+        <span className="grid size-10 place-items-center rounded-control bg-accent text-white"><Building2 aria-hidden="true" size={21} /></span>เรือนราคา
       </Link>
       <p className="text-xs leading-relaxed text-muted">บันทึกงานประเมินบ้านให้เป็นหลักฐานที่เชื่อถือได้</p>
     </div>
@@ -253,7 +286,7 @@ function NavGroups({
 
   const jobGroups = [
     { heading: "1 · รับงาน", links: jobLinks(["intake"]) },
-    { heading: "2 · ประเมิน", links: jobLinks(["workflow", "property", "photos", "references", "valuation", "report"]) },
+    { heading: "2 · ประเมิน", links: jobLinks(["workflow", "property", "photos", "drawings", "references", "valuation", "report"]) },
     { heading: "3 · ตรวจสอบ", links: jobLinks(["review"]) },
     { heading: "4 · ส่งมอบ", links: jobLinks(["export", "handoff", "integration"]) },
   ].filter((group) => group.links.length > 0);

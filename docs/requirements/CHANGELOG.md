@@ -1,44 +1,65 @@
-# Changelog
+# Requirements Changelog
 
-## 0.8.0 - 2026-08-29
-- แทนที่หน้า scaffold ของ intake, review, export, handoff, integration และ security ด้วย interactive demo
-- ทำ state machine `intake → assigned → readyToSubmit → submitted` และเส้นทางตีกลับ `changesRequested` พร้อมประวัติสถานะ
-- เพิ่มข้อมูลรับงาน ผู้ประเมิน ผู้ติดต่อ หลักฐานการส่ง generic CSV, simulated integration และ activity log ใน `localStorage`
-- จัด navigation ตาม 4 ช่วงงานและล็อกหน้าประเมินตามสถานะ โดยยังระบุข้อจำกัดของ auth, storage และ bank API อย่างชัดเจน
+## 0.10.0 — 2026-09-23
+- Focused new drawings on room, building, and house-plan work; store schema v2 removes existing road, land, housing-estate, and village drawings once.
+- Added a categorized appraisal material library with direct-draw and stamped components for walls, openings, stairs, hatched areas, labels, inspection leaders, and numbered callouts.
+- Added persistent drag-to-draw, 45° snapping, mobile free-angle control, desktop Alt override, and one Undo step per completed stroke.
+- Added editable double-door and straight/L/U-stair variants while keeping the prototype illustrative and without scale.
 
-## 0.7.0 - 2026-08-29
-- ปรับ `REQ-INSIGHT-006` ให้หน้ารายงานโหลดข้อมูลตัวอย่างเองเมื่อเปิดครั้งแรก จากเดิมที่ต้องกดปุ่มก่อน โดยเงื่อนไขคือยังไม่มีงานตัวอย่างในเบราว์เซอร์ และไม่ผูกกับสิทธิ์ เพื่อไม่ให้ทีมที่ไม่มีสิทธิ์เปิดมาเจอหน้าเปล่า
-- เพิ่มการจำว่าเคยโหลดแล้วในเบราว์เซอร์นี้ เพื่อให้การกดล้างข้อมูลตัวอย่างมีผลถาวร ไม่ถูกโหลดกลับมาเอง
-- เพิ่มคำเตือนบนหน้ารายงานว่ากำลังแสดงข้อมูล demo ไม่ใช่งานจริง
+## 0.9.4 — 2026-09-22
+- Aligned mobile drawing-dock actions with the input control baseline while retaining the single-row height and touch targets.
 
-## 0.6.0 - 2026-08-29
-- เพิ่ม [insights.md](insights.md) และ `REQ-INSIGHT-001` ถึง `REQ-INSIGHT-007` สำหรับรายงานภาพรวมของผู้ดูแลระบบ ครอบคลุมตัวกรองช่วงเวลา ตัวเลขสรุป งานค้าง เวลาต่อขั้นตอน เวลาต่อใบงาน ข้อมูลตัวอย่าง และสรุปรายผู้ประเมิน
-- เพิ่มหน้า `/insights` ต่อกับ `src/domain/reporting.ts` ที่มีอยู่แล้วแต่ยังไม่มี UI พร้อมปุ่มโหลด/ล้างข้อมูลตัวอย่างจาก `src/domain/demoJobs.ts`
-- เพิ่ม `assigneeStats` ใน `src/domain/reporting.ts` และเพิ่ม test ให้ `reporting.ts` กับ `demoJobs.ts` ที่เดิมยังไม่มี
-- ระบุไว้ชัดว่าเป้าเวลาต่อขั้นตอนและเกณฑ์งานค้างนานยังเป็นค่าสมมติ รอยืนยันกับผู้ใช้งานจริง และไม่ใช่ SLA ของธนาคาร
+## 0.9.3 — 2026-09-22
+- Placed all mobile selected-element properties in a single horizontally scrollable strip that replaces the add tools at the same height and position, without covering the drawing with an automatic sheet.
 
-## 0.5.0 - 2026-08-28
-- เพิ่ม `REQ-REFERENCE-001` ถึง `REQ-REFERENCE-006` สำหรับค้น นำเข้า เลือก สรุป และใช้ข้อมูลราคาอ้างอิงซ้ำ
-- เพิ่มหน้า `/jobs/[jobId]/references`, คลัง snapshot ใน browser, การค้นงานเก่าตามรัศมี/เวลา และ link-out ไปยังแหล่งภายนอก
-- เพิ่มช่วงราคาในหน้า valuation และหลักฐานอ้างอิงในรายงาน พร้อม migration ค่า `comparePrice` เดิม
+## 0.9.2 — 2026-09-22
+- Split the mobile drawing dock into add mode and selection-driven editing, with visible text editing, delete, and unselect actions.
+- Kept drawing-level title and element-list controls in the header panel; selected-element controls scroll within a dock capped at 40% of viewport height.
 
-## 0.4.0 - 2026-08-28
-- เพิ่ม `REQ-ROLE-002` เมนูกำหนดสิทธิ์รายเมนู (ซ่อน/อ่าน/แก้ไข) ต่อทีม พร้อมหน้า `/login` และ `/permissions` สำหรับ demo และบันทึกข้อจำกัดว่ายังบังคับสิทธิ์ฝั่ง client เท่านั้น จึงยังไม่ปิด `REQ-ROLE-001`
+## 0.9.1 — 2026-09-22
+- Prevented page scrolling during mobile canvas gestures and made the property panel visible above mobile navigation with internal scrolling.
+- Added 45° left/right rotation controls alongside the existing 15° controls.
 
-## 0.3.0 - 2026-08-28
-- เพิ่ม [pipeline.md](pipeline.md) กำหนดสายงาน 3 ทีม: ทีม A รับงานจากธนาคาร ทีม B ประเมินหน้างาน ทีม C ส่งผลกลับธนาคาร
-- เพิ่ม `REQ-PIPELINE-001` ถึง `REQ-PIPELINE-006` ครอบคลุมการรับงาน มอบหมาย ประเมิน ส่งธนาคาร ลำดับสถานะ และการตีกลับ
-- เพิ่ม `REQ-ROLE-001` บทบาททีม A/B/C ผูกกับ login พร้อมตารางสิทธิ์ โดยขึ้นกับ `REQ-SECURITY-001`
-- เพิ่มหน้า scaffold `/jobs/[jobId]/intake` และ `/jobs/[jobId]/handoff` สำหรับขั้นตอนทีม A และทีม C
+## 0.9.0 — 2026-09-22
+- Added `REQ-DRAWING-004`: crop a house-plan sketch one floor at a time, detect lines locally, and create editable walls/lines without retaining the source image.
+- Added `REQ-DRAWING-001`–`003`: seven illustrative drawing types, separate house-plan floors, mobile editing, report inclusion, and image export.
+- Added house-plan starters, stairs, hatching, dashed lines, and editable polygon points; dimensions remain user-entered text without scale.
+- Made drawing templates monochrome plans focused on boundaries, walls, openings, entrances, and roads rather than furniture.
+- Revised mobile navigation and the design system, using UI UX Pro Max for UX review.
+- Stored drawing shapes in `localStorage` with legacy-data migration; prototype limitations remain.
 
-## 0.2.0 - 2026-08-28
-- เพิ่ม implementation ด้วย Next.js/TypeScript App Router สำหรับ UI ครบทุกหน้าใน MVP
-- แตก flow เป็นหน้าแยกสำหรับรายการงาน สร้างงาน ข้อมูลงาน ทรัพย์สิน รูปถ่าย ประเมินราคา และรายงาน
-- เพิ่มหน้า scaffold สำหรับ review, export, bank integration และ security โดยระบุข้อจำกัดที่ต้องยืนยันก่อน production
-- อัปเดต traceability ให้ชี้ไปยัง routes/components ใหม่
+## 0.8.0 — 2026-08-29
+- Replaced intake, review, export, handoff, integration, and security scaffolds with interactive demos.
+- Added `intake → assigned → readyToSubmit → submitted`, the `changesRequested` return path, and status history.
+- Added intake, appraiser/contact, handoff evidence, generic CSV, simulated integration, and local activity data.
+- Organized navigation into four workflow stages and locked appraisal pages by status while documenting auth, storage, and bank API limits.
 
-## 0.1.0 - 2026-08-28
-- เพิ่ม requirement รุ่นเริ่มต้นสำหรับ prototype ระบบประเมินราคาบ้าน
-- เพิ่ม workflow บันทึกข้อมูลทรัพย์ รูปถ่าย และการคำนวณ 3 วิธี
-- เพิ่ม traceability ระหว่าง requirement กับ `index.html`
-- ระบุขอบเขตที่ยังไม่พร้อมสำหรับ production เช่น login, backend, review และ API ธนาคาร
+## 0.7.0 — 2026-08-29
+- Changed `REQ-INSIGHT-006` to auto-seed demo jobs on first view when no demo jobs exist, regardless of demo role, so reports are not empty.
+- Remembered prior seeding so cleared examples stay cleared; added an explicit demo-data warning.
+
+## 0.6.0 — 2026-08-29
+- Added [insights.md](insights.md) and `REQ-INSIGHT-001`–`007` for administrator filters, summaries, backlog, stage/job duration, demo data, and appraiser workload.
+- Connected `/insights` to existing `src/domain/reporting.ts`, added load/clear controls through `src/domain/demoJobs.ts`, `assigneeStats`, and tests for both modules.
+- Marked stage-time targets and stale-job thresholds as unvalidated assumptions, not bank SLAs.
+
+## 0.5.0 — 2026-08-28
+- Added `REQ-REFERENCE-001`–`006` for searching, importing, selecting, summarizing, and reusing price evidence.
+- Added the references page, browser snapshot library, location/time lookup of prior jobs, and external link-outs.
+- Added comparable ranges and report evidence, with migration of the old `comparePrice` value.
+
+## 0.4.0 — 2026-08-28
+- Added `REQ-ROLE-002`: per-team hidden/read/edit menu permissions and demo `/login`/`/permissions` pages. Client-only enforcement does not complete `REQ-ROLE-001`.
+
+## 0.3.0 — 2026-08-28
+- Added [pipeline.md](pipeline.md) for Team A intake, Team B appraisal, and Team C handoff.
+- Added `REQ-PIPELINE-001`–`006` for intake, assignment, appraisal, delivery, transitions, and returns, plus `REQ-ROLE-001` for real account-bound roles dependent on `REQ-SECURITY-001`.
+- Added intake and handoff route scaffolds.
+
+## 0.2.0 — 2026-08-28
+- Added a Next.js/TypeScript App Router implementation with separate jobs, creation, workflow, property, photos, valuation, and report pages.
+- Added review, export, bank-integration, and security scaffolds with explicit production questions; updated route/component traceability.
+
+## 0.1.0 — 2026-08-28
+- Added the initial home-appraisal prototype requirements, property/photo workflow, and three valuation methods.
+- Linked requirements to `index.html` and identified production gaps in login, backend, review, and bank APIs.

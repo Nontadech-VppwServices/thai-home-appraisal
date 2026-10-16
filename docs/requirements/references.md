@@ -1,71 +1,31 @@
-# Requirement: ข้อมูลอ้างอิงราคา
+# Price-Reference Evidence
 
-ฟีเจอร์นี้ช่วยทีม B รวบรวมหลักฐานประกอบการประเมิน โดยระบบเสนอและสรุปข้อมูล แต่ผู้ประเมินยังเป็นผู้เลือกข้อมูลและกำหนดราคาสุดท้ายเอง
+The system assists Team B with evidence; the appraiser chooses references and the final valuation. Government appraisals, market asking prices, and prior company jobs are distinct sources, not interchangeable transaction prices.
 
-## REQ-REFERENCE-001 ค้นข้อมูลราคาใกล้เคียง
+## REQ-REFERENCE-001 Search comparable prices
 
-**เมื่อ** ทีม B เปิดหน้าข้อมูลอ้างอิง **ระบบต้อง** ค้นข้อมูลด้วยพิกัดและประเภททรัพย์ของงานได้
+Search by job coordinates and property type, defaulting to the same type, a 5 km radius, and the last 24 months. Users can adjust location, type, radius, and period. Keep government, asking-price, and prior-job results separate; show distance, date, source, amount, and unit. If coordinates are missing, request them rather than guessing.
 
-**เกณฑ์ยอมรับ**
-- ค่าเริ่มต้นเป็นประเภททรัพย์เดียวกัน รัศมี 5 กม. และข้อมูลย้อนหลัง 24 เดือน
-- ผู้ใช้ปรับพิกัด ประเภททรัพย์ รัศมี และช่วงเวลาได้
-- แยกผลลัพธ์เป็นราคาประเมินภาครัฐ ราคาประกาศตลาด และงานประเมินเดิมของบริษัท
-- แสดงระยะห่าง วันที่ข้อมูล แหล่งที่มา ราคา และหน่วยของแต่ละรายการ
-- หากไม่มีพิกัดต้องแจ้งให้ผู้ใช้บันทึกพิกัดก่อน ไม่คำนวณตำแหน่งแทนเอง
+## REQ-REFERENCE-002 Import an external snapshot
 
-## REQ-REFERENCE-002 นำเข้าหลักฐานจากภายนอกเป็น snapshot
+After user verification, capture source/provider, URL, external reference, property type, address, coordinates, total and unit prices, area, source date, import time, and importer. Mark market listings as asking prices. Saved snapshots are immutable; corrections create a revision linked to the original. Deduplicate by provider plus external reference, or URL plus price plus source date. Existing reports must retain stored values if a source URL disappears.
 
-**เมื่อ** ทีม B พบข้อมูลจากแหล่งภายนอก **ผู้ใช้ต้อง** คัดลอกข้อมูลที่ตรวจสอบแล้วมาเก็บเป็นหลักฐานได้
+## REQ-REFERENCE-003 Select and reuse evidence
 
-**เกณฑ์ยอมรับ**
-- เก็บประเภทแหล่ง provider, URL, เลขอ้างอิง, ประเภททรัพย์, ที่อยู่, พิกัด, ราคารวม, ราคาต่อหน่วย, พื้นที่, วันที่ข้อมูล, เวลานำเข้า และผู้นำเข้า
-- ราคาประกาศตลาดต้องแสดงว่าเป็น “ราคาขอขาย” ไม่ใช่ราคาซื้อขายสำเร็จ
-- Snapshot ที่บันทึกแล้วแก้ทับไม่ได้ การแก้ไขต้องสร้าง revision ที่ชี้กลับรายการเดิม
-- ป้องกันข้อมูลซ้ำด้วย provider + external reference หรือ fallback เป็น URL + ราคา + วันที่ข้อมูล
-- รายงานงานเดิมยังอ่านค่าที่เก็บไว้ได้แม้ URL ต้นทางเปิดไม่ได้
+Team B can select multiple records, deselect them, and explain similarities/differences while the job remains editable. Store selector and selection time. Prior snapshots and jobs must be discoverable for eligible new jobs. The prototype library is limited to one browser; company-wide reuse requires central storage.
 
-## REQ-REFERENCE-003 เลือกข้อมูลและนำกลับมาใช้ซ้ำ
+## REQ-REFERENCE-004 Summarize comparable ranges
 
-**เมื่อ** มีข้อมูลที่เกี่ยวข้อง **ทีม B ต้อง** เลือกได้หลายรายการและระบุหมายเหตุความเหมือนหรือความต่างได้
+For selected evidence, show minimum, median, maximum, and sample count separately by source and price unit (total THB, THB/`ตร.วา`, THB/`ตร.ม.`). Never copy a summary into the final valuation automatically.
 
-**เกณฑ์ยอมรับ**
-- เลือก ยกเลิก และแก้หมายเหตุได้ตราบใดที่ทีม B ยังแก้งานได้
-- เก็บผู้เลือกและเวลาที่เลือก
-- Snapshot ที่เคยนำเข้าหรืองานประเมินเดิมต้องค้นพบในงานใหม่เมื่อเข้าเงื่อนไข
-- Prototype ใช้คลังใน browser เครื่องเดียว; production ใช้ฐานข้อมูลกลางทั้งบริษัท
+## REQ-REFERENCE-005 Show evidence in appraisal and report
 
-## REQ-REFERENCE-004 สรุปช่วงราคาโดยไม่ผสมข้อมูลต่างความหมาย
+Show grouped ranges in valuation while the appraiser enters the final price. Reports show the selected snapshot, date, provider, URL, note, and range. Missing evidence produces a warning/checklist acknowledgement, not a submission block.
 
-**เมื่อ** ทีม B เลือกข้อมูลอย่างน้อยหนึ่งรายการ **ระบบต้อง** แสดงค่าต่ำสุด ค่ากลาง และค่าสูงสุดได้
+## REQ-REFERENCE-006 Govern access and sources
 
-**เกณฑ์ยอมรับ**
-- สรุปแยกประเภทแหล่งข้อมูลเสมอ
-- สรุปแยกราคารวม บาท/ตร.ว. และบาท/ตร.ม. เสมอ
-- ค่ากลางใช้ median และแสดงจำนวนข้อมูลในกลุ่ม
-- ระบบไม่เขียนราคาสรุปลงราคาประเมินสุดท้ายอัตโนมัติ
+Team B edits/selects; Teams A/C read; administrators manage providers and duplicates. Production needs server-side authorization and audit. Automatic retrieval must use authorized APIs, feeds, or contracts; otherwise link out and require user verification. Never label government values or aggregate indices as parcel-level market prices.
 
-## REQ-REFERENCE-005 แสดงในขั้นตอนประเมินและรายงาน
+## Prototype limits
 
-**เมื่อ** ทีม B ประเมินราคาหรือทีม C ตรวจรายงาน **ระบบต้อง** แสดงข้อมูลอ้างอิงที่เลือกและที่มาของราคาได้
-
-**เกณฑ์ยอมรับ**
-- หน้า valuation แสดงช่วงราคาแยกกลุ่มและยังให้ผู้ประเมินกรอกราคาสุดท้ายเอง
-- รายงานแสดง snapshot, วันที่, provider, URL, หมายเหตุ และช่วงราคาสรุป
-- หากไม่มีข้อมูลอ้างอิง ระบบเตือนก่อนส่งงานแต่ไม่บล็อกการส่ง
-- Checklist มีรายการให้ตรวจข้อมูลอ้างอิงหรือรับทราบว่าไม่พบข้อมูล
-
-## REQ-REFERENCE-006 สิทธิ์และการเชื่อมแหล่งข้อมูล
-
-**เมื่อ** เปิดใช้หลายทีมและเชื่อมอินเทอร์เน็ตจริง **ระบบต้อง** จำกัดสิทธิ์และใช้ข้อมูลภายนอกอย่างได้รับอนุญาต
-
-**เกณฑ์ยอมรับ**
-- ทีม B แก้ไขและเลือกข้อมูลได้ ทีม A/C อ่านได้ และผู้ดูแลระบบจัดการ provider/รายการซ้ำได้
-- Production บังคับสิทธิ์ฝั่งเซิร์ฟเวอร์และบันทึก audit log
-- การค้นอัตโนมัติใช้เฉพาะ API, feed หรือสัญญาที่อนุญาต; แหล่งอื่นใช้ link-out และให้ผู้ใช้ตรวจข้อมูลก่อนนำเข้า
-- ราคาภาครัฐและดัชนีภาพรวมต้องติดป้ายตามประเภท ห้ามนำเสนอว่าเป็นราคาตลาดรายแปลง
-
-## ข้อจำกัดของ prototype
-
-- ยังไม่มีฐานข้อมูลกลาง การค้นงานเก่าจึงเห็นเฉพาะข้อมูลใน browser เครื่องเดียว
-- ยังไม่เรียก API หรือ scrape เว็บไซต์ภายนอก ปุ่มค้นหาเป็น link-out และผู้ใช้ต้องนำค่าที่ตรวจแล้วกลับมาบันทึก
-- สิทธิ์ยังเป็น demo ฝั่ง client ตามข้อจำกัดของ `REQ-ROLE-001`
+No central database, external API call, or scraping is implemented. Link-outs require manual import; permissions remain a client-side demo under `REQ-ROLE-001`.
